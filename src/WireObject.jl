@@ -9,13 +9,24 @@ end
 Base.range{R}(::WireObject{R}) = R
 Base.length{R}(::WireObject{R}) = length(R)
 
+#lexical transformations for logical operators.
+#unary logical operators
 Base.:~{R}(w::WireObject{R}) = WireObject{R}(string("~(", w.lexical_representation, ")"))
-Base.:&{R}(lhs::WireObject{R}, rhs::WireObject{R}) = WireObject{R}(string("($(lhs.lexical_representation) & $(rhs.lexical_representation))"))
-Base.:|{R}(lhs::WireObject{R}, rhs::WireObject{R}) = WireObject{R}(string("($(lhs.lexical_representation) | $(rhs.lexical_representation))"))
-Base.:^{R}(lhs::WireObject{R}, rhs::WireObject{R}) = WireObject{R}(string("($(lhs.lexical_representation) ^ $(rhs.lexical_representation))"))
+Base.:&{R}(w::WireObject{R}) = WireObject{0:0}(string("&(", w.lexical_representation, ")"))
+Base.:|{R}(w::WireObject{R}) = WireObject{0:0}(string("|(", w.lexical_representation, ")"))
+Base.:^{R}(w::WireObject{R}) = WireObject{0:0}(string("^(", w.lexical_representation, ")"))
+
+#presume that R & S have been checked to be the same size (for now).
+#binary logical operators
+Base.:&{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) & $(rhs.lexical_representation))"))
+Base.:|{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) | $(rhs.lexical_representation))"))
+Base.:^{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) ^ $(rhs.lexical_representation))"))
+
+#lexical transformations for arithmetic operatiors
+Base.:*{R}(lhs::Int, rhs::WireObject{R}) = WireObject{range(length(R) * lhs)}(string("{$lhs{$(rhs.lexical_representation)}}"))
 
 Base.getindex{R}(w::WireObject{R}, r::UnitRange) = WireObject{range(length(r))}(string("$(w.lexical_representation)[$(r.stop):$(r.start)]"))
-
+Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0}(string("$(w.lexical_representation)[$i]"))
 
 #Concatenation with wires using the Wire() operator.  Make the assumption that
 #any "wire" object that doesn't derive from an existing WireObject must be a

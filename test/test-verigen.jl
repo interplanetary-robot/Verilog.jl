@@ -1,6 +1,6 @@
 
-
 function g()
+  Verilog.@verimode :verilog
   Verilog.@verigen g
   Verilog.@input my_wire 7:0v
   Verilog.@assign new_wire my_wire
@@ -18,14 +18,15 @@ endmodule
 """
 
 function h()
-  Verilog.@verigen g
+  Verilog.@verimode :verilog
+  Verilog.@verigen h
   Verilog.@input my_wire 7:0v
   Verilog.@assign new_wire ~(my_wire)
   Verilog.@verifin
 end
 
 @test h() == """
-module g(
+module h(
   input [7:0] my_wire,
   output [7:0] new_wire);
 

@@ -28,7 +28,6 @@ end
 
 ################################################################################
 ## Aliased naked constructors.
-
 (::Type{Wire})(v::Bool)                = Wire{0:0}(BitVector([v]), trues(1))
 (::Type{Wire})(N::Signed)              = Wire{0:(N-1)}(BitVector(N), falses(N))
 (::Type{Wire})(R::UnitRange)           = Wire{R}(BitVector(length(R)), falses(length(R)))
@@ -57,6 +56,9 @@ function (::Type{Wire{R}}){R}(N::Unsigned)
   ba.chunks[1] = N
   #pass this to the bitarray-based constructor.
   Wire{R}(ba, trues(l))
+end
+function (::Type{Wire{R}}){R}()
+  Wire{R}(falses(length(R)), falses(length(R)))
 end
 
 type UnsignedBigInt <: Unsigned
