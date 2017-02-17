@@ -47,8 +47,8 @@ endmodule
 ```
 
 You can also write functions that call other functions.  Be sure to only call
-functions directly as an assignment to a new wire.  Otherwise, the software will
-work fine, but the verilog will not correctly execute.
+functions directly as an assignment to a new wire.  Otherwise, the software emulation
+will work fine, but the verilog will not correctly generate.
 
 ```julia
 @verilog function yet_another_arbitrary_binary(v1::Wire, bits)
@@ -61,7 +61,13 @@ work fine, but the verilog will not correctly execute.
 end
 ```
 
-This emits the following verilog:
+call this new function with no wire parameters:
+
+```julia
+julia> yet_another_arbitrary_binary(8)
+```
+
+And shall be emitted the following verilog:
 
 ```verilog
 module yet_another_arbitrary_binary_8_bit(
@@ -113,6 +119,9 @@ things easy to visualize for yourself, aggressively assign new identifiers for
 intermediate steps.  The `@verilog` macro will rewrite them and present them as
 
 Coming Soon:
+* better documentation!
+* more unit tests!
+* support for arithmetic operators
 * support for sequential logic as well as combinatorial logic
 * compiling verilog files into c library using Verilator
 * tools for automatic verification
