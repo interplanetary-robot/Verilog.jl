@@ -70,7 +70,11 @@ macro verimode(s, p...)
   if length(p) == 1
     assign_call_parameters = :(__call_parameters = [$(p[1])])
   elseif length(p) > 1
-    assign_call_parameters = :(__call_parameters = [$(p...)...])
+    assign_call_parameters = :(__call_parameters = [])
+    for idx = 1:length(p)
+      q = p[idx]
+      assign_call_parameters = :($assign_call_parameters; push!(__call_parameters, $(q)))
+    end
   else
     assign_call_parameters = :()
   end
@@ -177,6 +181,8 @@ macro assign(ident, expr)
         __verilog_state.wires[$ident_symbol] = assign_temp.wiredesc
         #this could be the last assignment.
         __verilog_state.last_assignment = $ident_symbol
+        #and also instantiate a new variable with this parameter.
+        $ident = Verilog.WireObject{assign_temp.wiredesc}(string($ident_symbol))
       else
         #just pass the value to ident, without touching it.
         $ident = assign_temp
@@ -219,6 +225,7 @@ end
 macro name_suffix(stringvalue)
   esc(quote
     __verilog_state.module_name = string(__verilog_state.module_name, "_", $stringvalue)
+    __module_params = (__verilog_state.module_name, __module_params[2:end]...)
   end)
 end
 

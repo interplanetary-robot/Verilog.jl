@@ -46,6 +46,38 @@ module arbitrary_binary_8_bit(
 endmodule
 ```
 
+You can also write functions that call other functions.  Be sure to only call
+functions directly as an assignment to a new wire.  Otherwise, the software will
+work fine, but the verilog will not correctly execute.
+
+```julia
+@verilog function yet_another_arbitrary_binary(v1::Wire, bits)
+  @name_suffix "$(bits)_bit"
+  @wire v1 (bits-1):0v
+
+  previous_function = arbitrary_binary(v1, v1[6:2v], bits)
+
+  result = Wire(0b11100111, 8) & previous_function
+end
+```
+
+This emits the following verilog:
+
+```verilog
+module yet_another_arbitrary_binary_8_bit(
+  input [7:0] v1,
+  output [7:0] result);
+
+  wire [7:0] previous_function;
+  arbitrary_binary_8_bit arbitrary_binary_8_bit_previous_function(
+    .v1 (v1),
+    .v2 (v1[6:2]),
+    .result (previous_function));
+  assign result = ({8'b11100111} & previous_function);
+
+endmodule
+```
+
 ## A few notes.
 
 ### On the Wire type.  
@@ -65,8 +97,8 @@ and won't use multiple versions, don't bother.
 
 ### What's the `@wire` macro?  
 If you have a vaguely-typed wire parameter in your function, as in you'd like
-the number of wires to be dependent on a passed value, you can enforce that type
-dependence using this macro.
+the number of wires to be dependent on a passed value, you will want to enforce
+that type dependence using this macro.  Bad things will happen otherwise.
 
 ### How does Verilog.jl know what to turn into the result?
 Since Julia automatically outputs the last line of your function as the result,

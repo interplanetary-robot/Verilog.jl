@@ -41,3 +41,12 @@ function (::Type{Wire})(ws::WOO...)
   l = sum(length, ws)
   WireObject{range(l)}(string("{", join([wo_concat(w) for w in ws],",") ,"}"))
 end
+
+#binary logical operators with constants on the left:
+Base.:&{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) & {$(wo_concat(rhs))})"))
+Base.:|{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) | {$(wo_concat(rhs))})"))
+Base.:^{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) ^ {$(wo_concat(rhs))})"))
+#binary logical operators with constants on the right:
+Base.:&{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} & $(rhs.lexical_representation))"))
+Base.:|{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} | $(rhs.lexical_representation))"))
+Base.:^{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} ^ $(rhs.lexical_representation))"))
