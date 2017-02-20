@@ -12,7 +12,7 @@ function Base.colon(i::Integer, vv::v)
   elseif vv.value == i
     return i:i
   else
-    return i:-1:vv.value
+    return vv.value:-1:i
   end
 end
 

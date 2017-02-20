@@ -27,6 +27,7 @@ Base.:*{R}(lhs::Int, rhs::WireObject{R}) = WireObject{range(length(R) * lhs)}(st
 
 Base.getindex{R}(w::WireObject{R}, r::UnitRange) = WireObject{range(length(r))}(string("$(w.lexical_representation)[$(r.stop):$(r.start)]"))
 Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0}(string("$(w.lexical_representation)[$i]"))
+Base.getindex{R}(w::WireObject{R}, r::StepRange) = WireObject{range(length(r))}(string("{",join(["$(w.lexical_representation)[$idx]" for idx in r],","),"}"))
 
 #Concatenation with wires using the Wire() operator.  Make the assumption that
 #any "wire" object that doesn't derive from an existing WireObject must be a

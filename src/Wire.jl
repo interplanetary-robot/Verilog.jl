@@ -98,12 +98,10 @@ function getindex{R}(w::Wire{R}, n::Integer)
   Wire(w.values[access_idx])
 end
 
-function getindex{R}(w::Wire{R}, r::UnitRange)
+function getindex{R}(w::Wire{R}, r::Union{UnitRange, StepRange})
   #returns a wire with the relevant selected values.
   issubset(r, R) || throw(BoundsError(w, r))
-  for idx in (r + 1 - R.start)
-    w.assigned[idx] || throw(UnassignedError())
-  end
+  (&)(w.assigned[r + 1 - R.start]...) || throw(UnassignedError())
 
   Wire(w.values[r + 1 - R.start])
 end
@@ -120,6 +118,8 @@ function setindex!{R}(dst::Wire{R}, src::Wire{0:0}, n::Integer)
   nothing
 end
 
+#you can dereference things as stepranges, but you can't dereference things
+#as stepranges.
 function Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::UnitRange)
   #check for size mismatch.
   (length(r) == length(RS)) || throw(SizeMismatchError())

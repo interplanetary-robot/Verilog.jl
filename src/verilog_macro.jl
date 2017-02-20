@@ -100,8 +100,6 @@ macro verilog(f)
   if f.head == :function
     #make three copies of the function.
 
-    println(f)
-
     #First, make the module version.
     f_module = module_translate(f)
     f_wiretext = wiretext_translate(f)
@@ -110,8 +108,6 @@ macro verilog(f)
     strip_nonmodule!(f)
     #Last make version that substitutes all wires with integers.
     f_integer = integer_translate(f)
-
-    println(f_wiretext)
 
     esc(quote
       #release all three forms of the function.
