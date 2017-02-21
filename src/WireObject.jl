@@ -9,6 +9,8 @@ end
 Base.range{R}(::WireObject{R}) = R
 Base.length{R}(::WireObject{R}) = length(R)
 
+lr(w) = w.lexical_representation
+
 #lexical transformations for logical operators.
 #unary logical operators
 Base.:~{R}(w::WireObject{R}) = WireObject{R}(string("~(", w.lexical_representation, ")"))
@@ -16,18 +18,31 @@ Base.:&{R}(w::WireObject{R}) = WireObject{0:0}(string("&(", w.lexical_representa
 Base.:|{R}(w::WireObject{R}) = WireObject{0:0}(string("|(", w.lexical_representation, ")"))
 Base.:^{R}(w::WireObject{R}) = WireObject{0:0}(string("^(", w.lexical_representation, ")"))
 
+Base.:&(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0}(string("&({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
+Base.:|(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0}(string("|({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
+Base.:^(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0}(string("^({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
+
 #presume that R & S have been checked to be the same size (for now).
 #binary logical operators
-Base.:&{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) & $(rhs.lexical_representation))"))
-Base.:|{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) | $(rhs.lexical_representation))"))
-Base.:^{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) ^ $(rhs.lexical_representation))"))
+Base.:&{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) & $(lr(rhs)))")
+Base.:|{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) | $(lr(rhs)))")
+Base.:^{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) ^ $(lr(rhs)))")
+
+xorxnor{R}(w::WireObject{R}) = WireObject{1:0v}("{^($(lr(w))), ~^($(lr(w)))}")
 
 #lexical transformations for arithmetic operatiors
-Base.:*{R}(lhs::Int, rhs::WireObject{R}) = WireObject{range(length(R) * lhs)}(string("{$lhs{$(rhs.lexical_representation)}}"))
+Base.:*{R}(lhs::Int, rhs::WireObject{R}) = WireObject{range(length(R) * lhs)}("{$lhs{$(lr(rhs))}}")
 
-Base.getindex{R}(w::WireObject{R}, r::UnitRange) = WireObject{range(length(r))}(string("$(w.lexical_representation)[$(r.stop):$(r.start)]"))
-Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0}(string("$(w.lexical_representation)[$i]"))
-Base.getindex{R}(w::WireObject{R}, r::StepRange) = WireObject{range(length(r))}(string("{",join(["$(w.lexical_representation)[$idx]" for idx in r],","),"}"))
+#other arithmetic operators
+Base.:+{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) + $(lr(rhs)))")
+Base.:-{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) - $(lr(rhs)))")
+Base.:*{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R) + length(S))}("($(lr(lhs)) * $(lr(rhs)))")
+
+Base.:-{R}(lhs::WireObject{R}) = WireObject{range(length(R))}("-($(lr(lhs)))")
+
+Base.getindex{R}(w::WireObject{R}, r::UnitRange) = WireObject{range(length(r))}(string("$(lr(w))[$(r.stop):$(r.start)]"))
+Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0}(string("$(lr(w))[$i]"))
+Base.getindex{R}(w::WireObject{R}, r::StepRange) = WireObject{range(length(r))}(string("{",join(["$(lr(w))[$idx]" for idx in r],", "),"}"))
 
 #Concatenation with wires using the Wire() operator.  Make the assumption that
 #any "wire" object that doesn't derive from an existing WireObject must be a
@@ -43,11 +58,20 @@ function (::Type{Wire})(ws::WOO...)
   WireObject{range(l)}(string("{", join([wo_concat(w) for w in ws],",") ,"}"))
 end
 
-#binary logical operators with constants on the left:
-Base.:&{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) & {$(wo_concat(rhs))})"))
-Base.:|{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) | {$(wo_concat(rhs))})"))
-Base.:^{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lhs.lexical_representation) ^ {$(wo_concat(rhs))})"))
 #binary logical operators with constants on the right:
-Base.:&{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} & $(rhs.lexical_representation))"))
-Base.:|{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} | $(rhs.lexical_representation))"))
-Base.:^{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} ^ $(rhs.lexical_representation))"))
+Base.:&{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lr(lhs)) & {$(wo_concat(rhs))})"))
+Base.:|{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lr(lhs)) | {$(wo_concat(rhs))})"))
+Base.:^{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}(string("($(lr(lhs)) ^ {$(wo_concat(rhs))})"))
+#binary logical operators with constants on the left:
+Base.:&{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} & $(lr(rhs)))"))
+Base.:|{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} | $(lr(rhs)))"))
+Base.:^{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(string("({$(wo_concat(lhs))} ^ $(lr(rhs)))"))
+
+#arithmetic operators with constants on the left:
+Base.:+{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) + $(lr(rhs)))")
+Base.:-{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) - $(lr(rhs)))")
+Base.:*{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R) + length(S))}("($(wo_concat(lhs)) * $(lr(rhs)))")
+
+Base.:+{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) + $(wo_concat(rhs)))")
+Base.:-{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) - $(wo_concat(rhs)))")
+Base.:*{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R) + length(S))}("($(lr(lhs)) * $(wo_concat(rhs)))")

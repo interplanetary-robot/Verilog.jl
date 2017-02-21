@@ -43,11 +43,11 @@ function describe(v::Verigen)
   wirestrings = [string("  wire ", v_fmt(v.wires[wire]), wire, ";") for wire in keys(v.wires) if
     (!(wire in inpnames)) && (wire != output_symbol)]
 
-  wire_declarations = string(join(wirestrings, "\n"), length(wirestrings) > 0 ? "\n" : "")
+  wire_declarations = string(join(wirestrings, "\n"), length(wirestrings) > 0 ? "\n\n" : "")
 
   assignments = join(v.assignments, "\n")
 
-  modulecalls = join(v.modulecalls, "\n")
+  modulecalls = string(join(v.modulecalls, "\n"), length(v.modulecalls) > 0 ? "\n" : "")
 """
 module $(v.module_name)($io_declarations);
 
@@ -158,7 +158,7 @@ macro assign(ident, expr)
         else
           __verilog_state.wires[$ident_symbol] = range(assign_temp)
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, " = ", assign_temp.lexical_representation, ";"))
-          $ident = assign_temp
+          $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
         end
         #remember the last assignment
         __verilog_state.last_assignment = $ident_symbol
@@ -195,7 +195,7 @@ macro assign(ident, expr)
       assign_temp = $expr
       if isa(assign_temp, Verilog.WireObject)
         if $ident_symbol in keys(__verilog_state.wires)
-          push!(__verilog_state.assignments, string("  assign ", $ident_symbol, " ", Verilog.v_fmt($ident_reference), "= ", assign_temp.lexical_representation, ";"))
+          push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt($ident_reference), "= ", assign_temp.lexical_representation, ";"))
         else
           throw(AssignError("can't make a partial assignment to a nonexistent wire."))
         end
