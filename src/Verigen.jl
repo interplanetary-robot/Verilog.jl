@@ -10,8 +10,14 @@ type Verigen
   Verigen(s::Symbol) = new(s, Tuple{Symbol,UnitRange}[], Dict{Symbol,UnitRange}(),String[], String[],:nothing)
 end
 
+#formatting for input declarations only.
+function v_decl_fmt(r::UnitRange)
+  r == 0:0 && return ""
+  return "[$(r.stop):$(r.start)] "
+end
+
 function v_fmt(r::UnitRange)
-  r == (0:0) && return ""
+  r.stop == r.start && return "[$(r.stop)] "
   return "[$(r.stop):$(r.start)] "
 end
 
@@ -37,10 +43,10 @@ function describe(v::Verigen)
   inpnames = Set{Symbol}([inp[1] for inp in v.inputs])
 
   io_declarations = string("\n  ",
-    join([string("input ", v_fmt(input[2]), input[1]) for input in v.inputs], ",\n  "),
-    ",\n  output ", v_fmt(v.wires[output_symbol]), output_symbol)
+    join([string("input ", v_decl_fmt(input[2]), input[1]) for input in v.inputs], ",\n  "),
+    ",\n  output ", v_decl_fmt(v.wires[output_symbol]), output_symbol)
 
-  wirestrings = [string("  wire ", v_fmt(v.wires[wire]), wire, ";") for wire in keys(v.wires) if
+  wirestrings = [string("  wire ", v_decl_fmt(v.wires[wire]), wire, ";") for wire in keys(v.wires) if
     (!(wire in inpnames)) && (wire != output_symbol)]
 
   wire_declarations = string(join(wirestrings, "\n"), length(wirestrings) > 0 ? "\n\n" : "")
@@ -212,6 +218,14 @@ macro assign(ident, expr)
           __verilog_state.last_assignment = $ident_symbol
         else
           throw(AssignError("can't make a partial assignment to a nonexistent wire."))
+        end
+      elseif isa(assign_temp, Verilog.Wire)
+        #assume that naked wire objects that are tried to be assigned must be
+        #constant values.
+        if Verilog.assigned(assign_temp)
+          push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt($ident_reference), "= ", Verilog.wo_concat(assign_temp), ";"))
+        else
+          throw(UnassignedError())
         end
       else
         $ident = $expr

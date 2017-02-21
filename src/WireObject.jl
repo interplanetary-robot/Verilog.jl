@@ -17,6 +17,10 @@ Base.:~{R}(w::WireObject{R}) = WireObject{R}(string("~(", w.lexical_representati
 Base.:&{R}(w::WireObject{R}) = WireObject{0:0}(string("&(", w.lexical_representation, ")"))
 Base.:|{R}(w::WireObject{R}) = WireObject{0:0}(string("|(", w.lexical_representation, ")"))
 Base.:^{R}(w::WireObject{R}) = WireObject{0:0}(string("^(", w.lexical_representation, ")"))
+#make single-wire objects pass through without doing any collection.
+Base.:&(w::WireObject{0:0}) = w
+Base.:|(w::WireObject{0:0}) = w
+Base.:^(w::WireObject{0:0}) = w
 
 Base.:&(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0}(string("&({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
 Base.:|(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0}(string("|({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
@@ -40,7 +44,10 @@ Base.:*{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R
 
 Base.:-{R}(lhs::WireObject{R}) = WireObject{range(length(R))}("-($(lr(lhs)))")
 
-Base.getindex{R}(w::WireObject{R}, r::UnitRange) = WireObject{range(length(r))}(string("$(lr(w))[$(r.stop):$(r.start)]"))
+function Base.getindex{R}(w::WireObject{R}, r::UnitRange)
+  (r.stop == r.start) && return WireObject{range(length(r))}(string("$(lr(w))[$(r.stop)]"))
+  WireObject{range(length(r))}(string("$(lr(w))[$(r.stop):$(r.start)]"))
+end
 Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0}(string("$(lr(w))[$i]"))
 Base.getindex{R}(w::WireObject{R}, r::StepRange) = WireObject{range(length(r))}(string("{",join(["$(lr(w))[$idx]" for idx in r],", "),"}"))
 
