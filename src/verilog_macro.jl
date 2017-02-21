@@ -111,7 +111,7 @@ macro verilog(f)
 
     esc(quote
       #release all three forms of the function.
-      $f
+      Base.@__doc__ $f
       $f_integer
       $f_module
       $f_wiretext
