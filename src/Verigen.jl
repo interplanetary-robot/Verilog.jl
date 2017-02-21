@@ -169,6 +169,7 @@ macro assign(ident, expr)
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, " = ", Verilog.wo_concat(assign_temp), ";"))
         else
           __verilog_state.wires[$ident_symbol] = range(assign_temp)
+          $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
         end
       elseif isa(assign_temp, Verilog.ModuleObject)
         mname = assign_temp.modulename
