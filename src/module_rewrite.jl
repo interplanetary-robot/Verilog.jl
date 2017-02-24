@@ -35,7 +35,7 @@ function strip_wire_inputs!(f::Expr)
       #push a blank input symbol to the inputs_list stack.
       push!(inputs_list, (argument.args[1], nothing))
     elseif argument.args[2] == :SingleWire
-      push!(inputs_list, (argument.args[1], :(0:0)))
+      push!(inputs_list, (argument.args[1], :(0:0v)))
     elseif isa(argument.args[2], Expr) &&
       (argument.args[2].head == :curly) &&
       (argument.args[2].args[1] == :Wire) &&

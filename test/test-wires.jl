@@ -19,7 +19,7 @@ my_wire[0] = Wire(false)
 @test_throws Verilog.AssignedError my_wire[0] = Wire(true)
 
 #show that attempting to access multiple indices throws an error when they're unset.
-@test_throws Verilog.UnassignedError my_wire[0:2]
+@test_throws Verilog.UnassignedError my_wire[2:0v]
 
 @test_string "Wire{7:0v}(0b10010010)" Wire(0b10010010)
 
@@ -28,13 +28,13 @@ my_short_wire = Wire(0b110, 3)
 @test_string "Wire{2:0v}(0b110)" my_short_wire
 
 #show that attempting to set a partially set value throws an error.
-@test_throws Verilog.AssignedError my_wire[0:2] = my_short_wire
+@test_throws Verilog.AssignedError my_wire[2:0v] = my_short_wire
 
 #as does trying to set different sizes.
-@test_throws Verilog.SizeMismatchError my_wire[0:3] = my_short_wire
+@test_throws Verilog.SizeMismatchError my_wire[3:0v] = my_short_wire
 
 #but working with fully set values is ok.
-my_wire[1:3] = my_short_wire
+my_wire[3:1v] = my_short_wire
 @test_string "Wire{3:0v}(0b1100)" my_wire
 
 ###############################################################################
