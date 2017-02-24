@@ -2,21 +2,21 @@
 
 type Verigen
   module_name::Symbol
-  inputs::Vector{Tuple{Symbol,UnitRange}}
-  wires ::Dict{Symbol,UnitRange}
+  inputs::Vector{Tuple{Symbol,VerilogRange}}
+  wires ::Dict{Symbol,VerilogRange}
   assignments::Array{String}
   modulecalls::Array{String}
   last_assignment::Symbol
-  Verigen(s::Symbol) = new(s, Tuple{Symbol,UnitRange}[], Dict{Symbol,UnitRange}(),String[], String[],:nothing)
+  Verigen(s::Symbol) = new(s, Tuple{Symbol,VerilogRange}[], Dict{Symbol,VerilogRange}(),String[], String[],:nothing)
 end
 
 #formatting for input declarations only.
-function v_decl_fmt(r::UnitRange)
+function v_decl_fmt(r::VerilogRange)
   r == 0:0 && return ""
   return "[$(r.stop):$(r.start)] "
 end
 
-function v_fmt(r::UnitRange)
+function v_fmt(r::VerilogRange)
   r.stop == r.start && return "[$(r.stop)] "
   return "[$(r.stop):$(r.start)] "
 end
@@ -29,7 +29,7 @@ type ModuleObject
   modulename::Symbol
   inputlist::Vector{String}
   outputname::Symbol
-  wiredesc::UnitRange
+  wiredesc::VerilogRange
 end
 
 const __global_definition_cache = Dict{Any,Tuple}()
@@ -91,7 +91,6 @@ macro verimode(s, p...)
       $assign_call_parameters
     end
   end)
-
   return m
 end
 
@@ -203,7 +202,8 @@ macro assign(ident, expr)
       assign_temp = $expr
       if isa(assign_temp, Verilog.WireObject)
         if $ident_symbol in keys(__verilog_state.wires)
-          push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt($ident_reference), "= ", assign_temp.lexical_representation, ";"))
+          parsed_reference = isa($ident_reference, VerilogRange) ? $ident_reference : Verilog.parse_msb(__module_params.wires[$ident_symbol], $ident_reference) 
+          push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt(parsed_reference), "= ", assign_temp.lexical_representation, ";"))
         else
           throw(AssignError("can't make a partial assignment to a nonexistent wire."))
         end

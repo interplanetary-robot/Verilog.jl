@@ -89,6 +89,12 @@ function Base.:-(::Type{msb}, n::Integer)
   msb(n)
 end
 
+function parse_msb(rr::RelativeRange, vr::VerilogRange)
+  true_start = isa(rr.start, msb) ? vr.stop - rr.start.value : rr.start
+  true_stop  = isa(rr.stop, msb)  ? vr.stop - rr.stop.value  : rr.stop
+  true_stop:(true_start)v
+end
+
 export v, msb
 
 #because verilog often uses zero-indexing, a python-style range() operator

@@ -110,11 +110,7 @@ function getindex{R}(w::Wire{R}, r::VerilogRange)
   Wire(w.values[rr + 1 - R.start])
 end
 
-function getindex{R}(w::Wire{R}, r::RelativeRange)
-  true_start = isa(r.start, msb) ? R.stop - r.start.value : r.start
-  true_stop  = isa(r.stop, msb)  ? R.stop - r.stop.value  : r.stop
-  getindex(w, true_stop:(true_start)v)
-end
+getindex{R}(w::Wire{R}, r::RelativeRange) = getindex(w, parse_msb(r, R))
 
 ################################################################################
 ## setters
@@ -157,11 +153,7 @@ function Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::VerilogRange)
   nothing
 end
 
-function Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::RelativeRange)
-  true_start = isa(r.start, msb) ? R.stop - r.start.value : r.start
-  true_stop  = isa(r.stop, msb)  ? R.stop - r.stop.value  : r.stop
-  setindex!(dst, src, true_stop:(true_start)v)
-end
+Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::RelativeRange) = setindex!(dst, src, parse_msb(r, RD))
 
 
 doc"""

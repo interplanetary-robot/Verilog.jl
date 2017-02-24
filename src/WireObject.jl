@@ -14,17 +14,17 @@ lr(w) = w.lexical_representation
 #lexical transformations for logical operators.
 #unary logical operators
 Base.:~{R}(w::WireObject{R}) = WireObject{R}(string("~(", w.lexical_representation, ")"))
-Base.:&{R}(w::WireObject{R}) = WireObject{0:0}(string("&(", w.lexical_representation, ")"))
-Base.:|{R}(w::WireObject{R}) = WireObject{0:0}(string("|(", w.lexical_representation, ")"))
-Base.:^{R}(w::WireObject{R}) = WireObject{0:0}(string("^(", w.lexical_representation, ")"))
+Base.:&{R}(w::WireObject{R}) = WireObject{0:0v}(string("&(", w.lexical_representation, ")"))
+Base.:|{R}(w::WireObject{R}) = WireObject{0:0v}(string("|(", w.lexical_representation, ")"))
+Base.:^{R}(w::WireObject{R}) = WireObject{0:0v}(string("^(", w.lexical_representation, ")"))
 #make single-wire objects pass through without doing any collection.
-Base.:&(w::WireObject{0:0}) = w
-Base.:|(w::WireObject{0:0}) = w
-Base.:^(w::WireObject{0:0}) = w
+Base.:&(w::WireObject{0:0v}) = w
+Base.:|(w::WireObject{0:0v}) = w
+Base.:^(w::WireObject{0:0v}) = w
 
-Base.:&(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0}(string("&({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
-Base.:|(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0}(string("|({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
-Base.:^(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0}(string("^({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
+Base.:&(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0v}(string("&({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
+Base.:|(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0v}(string("|({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
+Base.:^(w1::WireObject, w2::WireObject, w3::WireObject, ws::WireObject...) = WireObject{0:0v}(string("^({",join([lr(w) for w in [w1, w2, w3, ws...]], ", "),"})"))
 
 #presume that R & S have been checked to be the same size (for now).
 #binary logical operators
@@ -44,13 +44,19 @@ Base.:*{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R
 
 Base.:-{R}(lhs::WireObject{R}) = WireObject{range(length(R))}("-($(lr(lhs)))")
 
-function Base.getindex{R}(w::WireObject{R}, r::UnitRange)
-  (r.stop == r.start) && return WireObject{range(length(r))}(string("$(lr(w))[$(r.stop)]"))
-  WireObject{range(length(r))}(string("$(lr(w))[$(r.stop):$(r.start)]"))
+function Base.getindex{R}(w::WireObject{R}, r::VerilogRange)
+  if (r.stop == r.start)
+    WireObject{range(length(r))}(string("$(lr(w))[$(r.stop)]"))
+  elseif (r.stop > r.start)
+    WireObject{range(length(r))}(string("$(lr(w))[$(r.stop):$(r.start)]"))
+  else
+    WireObject{range(length(r))}(string("{",join(["$(lr(w))[$idx]" for idx in reverse(r)],", "),"}"))
+  end
 end
-Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0}(string("$(lr(w))[$i]"))
-Base.getindex{R}(w::WireObject{R}, r::StepRange) = WireObject{range(length(r))}(string("{",join(["$(lr(w))[$idx]" for idx in reverse(r)],", "),"}"))
 
+Base.getindex{R}(w::WireObject{R}, r::RelativeRange) = getindex(w, parse_msb(r, R))
+
+Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0v}(string("$(lr(w))[$i]"))
 #Concatenation with wires using the Wire() operator.  Make the assumption that
 #any "wire" object that doesn't derive from an existing WireObject must be a
 #constant.  We can then transparently overload the Wire() operator with no
