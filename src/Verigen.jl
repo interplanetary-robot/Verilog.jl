@@ -200,9 +200,9 @@ macro assign(ident, expr)
     ident_reference = ident.args[2]
     esc(quote
       assign_temp = $expr
+      parsed_reference = isa($ident_reference, VerilogRange) ? $ident_reference : Verilog.parse_msb(__module_params.wires[$ident_symbol], $ident_reference)
       if isa(assign_temp, Verilog.WireObject)
         if $ident_symbol in keys(__verilog_state.wires)
-          parsed_reference = isa($ident_reference, VerilogRange) ? $ident_reference : Verilog.parse_msb(__module_params.wires[$ident_symbol], $ident_reference) 
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt(parsed_reference), "= ", assign_temp.lexical_representation, ";"))
         else
           throw(AssignError("can't make a partial assignment to a nonexistent wire."))
@@ -210,10 +210,10 @@ macro assign(ident, expr)
       elseif isa(assign_temp, Verilog.ModuleObject)
         if $ident_symbol in keys(__verilog_state.wires)
           mname = assign_temp.modulename
-          mcaller = string(assign_temp.modulename, "_", $ident_symbol, "_", ($ident_reference).stop, "_", ($ident_reference).start)
+          mcaller = string(assign_temp.modulename, "_", $ident_symbol, "_", (parsed_reference).stop, "_", (parsed_reference).start)
           mout = assign_temp.outputname
           iplist = assign_temp.inputlist
-          idsym = string($ident_symbol, Verilog.v_fmt($ident_reference))
+          idsym = string($ident_symbol, Verilog.v_fmt(parsed_reference))
           push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    .$mout ($idsym));\n"))
           #this could be the last assignment.
           __verilog_state.last_assignment = $ident_symbol
