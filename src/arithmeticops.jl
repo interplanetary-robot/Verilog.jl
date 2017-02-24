@@ -52,6 +52,6 @@ function Base.:-{R}(tgt::Wire{R})
 
   #create a new uninitialized wire of the same length
   result = Wire{range(length(R))}(BitVector(length(R)), trues(length(R)))
-  result.values.chunks[1] = tgt.values.chunks[1]
+  result.values.chunks[1] = -tgt.values.chunks[1]
   result
 end

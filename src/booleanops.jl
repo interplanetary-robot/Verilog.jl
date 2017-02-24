@@ -42,7 +42,7 @@ end
 
 function Base.:^{N}(tgt::Wire{N})
   assigned(tgt) || throw(UnassignedError())
-  Wire((^)(tgt.values...))
+  Wire(($)(tgt.values...))
 end
 
 #negated operators
@@ -61,7 +61,7 @@ Base.:~(::typeof(^)) = xnor
 
 function xorxnor(w::Wire)
   assigned(w) || throw(UnassignedError())
-  Wire([(~^)(w), (^)(w)])
+  Wire([(^)(w), (~^)(w)])
 end
 
 export xorxnor, and, or, nand, nor, xnor

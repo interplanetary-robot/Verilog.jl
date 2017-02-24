@@ -49,7 +49,7 @@ function Base.getindex{R}(w::WireObject{R}, r::UnitRange)
   WireObject{range(length(r))}(string("$(lr(w))[$(r.stop):$(r.start)]"))
 end
 Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0}(string("$(lr(w))[$i]"))
-Base.getindex{R}(w::WireObject{R}, r::StepRange) = WireObject{range(length(r))}(string("{",join(["$(lr(w))[$idx]" for idx in r],", "),"}"))
+Base.getindex{R}(w::WireObject{R}, r::StepRange) = WireObject{range(length(r))}(string("{",join(["$(lr(w))[$idx]" for idx in reverse(r)],", "),"}"))
 
 #Concatenation with wires using the Wire() operator.  Make the assumption that
 #any "wire" object that doesn't derive from an existing WireObject must be a

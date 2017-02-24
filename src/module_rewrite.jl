@@ -93,6 +93,12 @@ function linebyline_adaptor!(block::Expr, input_list = nothing)
       #println("forloop block:")
       linebyline_adaptor!(argument.args[2])
       push!(newargs, argument)
+    elseif (argument.head == :if)
+      linebyline_adaptor!(argument.args[2])
+      if length(argument) == 3
+        linebyline_adaptor!(argument.args[3])
+      end
+      push!(newargs, argument)
     else
       push!(newargs, argument)
     end

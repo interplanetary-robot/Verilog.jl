@@ -173,6 +173,7 @@ macro assign(ident, expr)
         #wire declaration or some sort of wire constant.
         if Verilog.assigned(assign_temp)
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, " = ", Verilog.wo_concat(assign_temp), ";"))
+          $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
         else
           __verilog_state.wires[$ident_symbol] = range(assign_temp)
           $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))

@@ -20,7 +20,8 @@ immutable Wire{R}
   assigned::BitVector
 
   function Wire(bv1, bv2)
-    (R.start <= R.stop) || throw(TypeError(:Wire, "constructor range direction failed", UnitRange, "backwards"))
+    isa(R, VerilogRange) || throw(TypeError(:Wire, "specifier must be a VerilogRange", VerilogRange, typeof(R)))
+    (R.start <= R.stop) || throw(TypeError(:Wire, "constructor range direction failed", R, "backwards"))
     (length(bv1) == length(bv2) == length(R)) || throw(SizeMismatchError())
     new(bv1, bv2)
   end
@@ -28,10 +29,10 @@ end
 
 ################################################################################
 ## Aliased naked constructors.
-(::Type{Wire})(v::Bool)                = Wire{0:0}(BitVector([v]), trues(1))
-(::Type{Wire})(N::Signed)              = Wire{0:(N-1)}(BitVector(N), falses(N))
-(::Type{Wire})(R::UnitRange)           = Wire{R}(BitVector(length(R)), falses(length(R)))
-(::Type{Wire})(bv::BitVector)          = Wire{0:(length(bv)-1)}(bv, trues(length(bv)))
+(::Type{Wire})(bv::Bool)               = Wire{0:0v}(BitArray([bv]),trues(1))
+(::Type{Wire})(N::Signed)              = Wire{(N-1):0v}(BitVector(N), falses(N))
+(::Type{Wire})(R::VerilogRange)        = Wire{R}(BitVector(length(R)), falses(length(R)))
+(::Type{Wire})(bv::BitVector)          = Wire{(length(bv)-1):0v}(bv, trues(length(bv)))
 #allow initialization of wire with an array, but remember to reverse it.
 (::Type{Wire})(wa::Vector{Wire})       = Wire(vcat(map((w) -> w.values, reverse(wa))...))
 (::Type{Wire}){N}(wa::Vector{Wire{N}}) = Wire(vcat(map((w) -> w.values, reverse(wa))...))
@@ -44,7 +45,7 @@ function (::Type{Wire})(N::Unsigned, l::Integer = 0)
   #mask out crap we don't want.
   Wire(N, range(l))
 end
-function (::Type{Wire})(N::Unsigned, r::UnitRange)
+function (::Type{Wire})(N::Unsigned, r::VerilogRange)
   Wire{r}(N)
 end
 function (::Type{Wire{R}}){R}(N::Unsigned)
@@ -98,15 +99,27 @@ function getindex{R}(w::Wire{R}, n::Integer)
   Wire(w.values[access_idx])
 end
 
-function getindex{R}(w::Wire{R}, r::Union{UnitRange, StepRange})
+getindex{R}(w::Wire{R}, ::Type{msb}) = getindex(w, R.stop)
+getindex{R}(w::Wire{R}, ridx::msb)   = getindex(w, R.stop - ridx.value)
+
+function getindex{R}(w::Wire{R}, r::VerilogRange)
   #returns a wire with the relevant selected values.
   issubset(r, R) || throw(BoundsError(w, r))
-  (&)(w.assigned[r + 1 - R.start]...) || throw(UnassignedError())
-
-  Wire(w.values[r + 1 - R.start])
+  rr = ((r.stop >= r.start) ? (r.start:r.stop) : (r.stop:-1:r.start))
+  (&)(w.assigned[rr + 1 - R.start]...) || throw(UnassignedError())
+  Wire(w.values[rr + 1 - R.start])
 end
 
-function setindex!{R}(dst::Wire{R}, src::Wire{0:0}, n::Integer)
+function getindex{R}(w::Wire{R}, r::RelativeRange)
+  true_start = isa(r.start, msb) ? R.stop - r.start.value : r.start
+  true_stop  = isa(r.stop, msb)  ? R.stop - r.stop.value  : r.stop
+  getindex(w, true_stop:(true_start)v)
+end
+
+################################################################################
+## setters
+
+function setindex!{R}(dst::Wire{R}, src::Wire{0:0v}, n::Integer)
   (n in R) || throw(BoundsError(dst, n))
   offset_idx = n - R.start + 1
 
@@ -118,10 +131,14 @@ function setindex!{R}(dst::Wire{R}, src::Wire{0:0}, n::Integer)
   nothing
 end
 
+setindex!{R}(dst::Wire{R}, src::Wire{0:0v}, ::Type{msb}) = setindex!(dst, src, R.stop)
+setindex!{R}(dst::Wire{R}, src::Wire{0:0v}, m::msb) = setindex!(dst, src, R.stop - m.value)
+
 #you can dereference things as stepranges, but you can't dereference things
 #as stepranges.
-function Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::UnitRange)
+function Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::VerilogRange)
   #check for size mismatch.
+  (r.stop >= r.start) || throw(ArgumentError("only forward VerilogRanges allowed for setting"))
   (length(r) == length(RS)) || throw(SizeMismatchError())
   (issubset(r, RD)) || throw(BoundsError(dst, r))
 
@@ -140,6 +157,12 @@ function Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::UnitRange)
   nothing
 end
 
+function Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::RelativeRange)
+  true_start = isa(r.start, msb) ? R.stop - r.start.value : r.start
+  true_stop  = isa(r.stop, msb)  ? R.stop - r.stop.value  : r.stop
+  setindex!(dst, src, true_stop:(true_start)v)
+end
+
 
 doc"""
   `@wire` binds a wire value to a certain size.
@@ -156,6 +179,9 @@ macro wire(identifier, rangedescriptor)
 end
 
 #it's useful to declare a single wire shorthand
-typealias SingleWire Wire{0:0}
+typealias SingleWire Wire{0:0v}
 
-export Wire, @wire, SingleWire
+typealias OptionalWire{R}    Union{Void, Wire{R}}
+typealias OptionalSingleWire Union{Void, SingleWire}
+
+export Wire, @wire, SingleWire, OptionalWire, OptionalSingleWire
