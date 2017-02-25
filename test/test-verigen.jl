@@ -36,8 +36,8 @@ endmodule
 """
 
 @verilog function arbitrary_binary(v1::Wire, v2::Wire{4:0v}, bits)
-  @name_suffix "$(bits)_bit"
-  @wire v1 (bits-1):0v
+  @suffix "$(bits)_bit"
+  @input v1 (bits-1):0v
   result = v1 ^ Wire(Wire(0b0000,4), v2[4:1v])
 end
 

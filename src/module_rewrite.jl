@@ -75,7 +75,8 @@ function linebyline_adaptor!(block::Expr, input_list = nothing)
       push!(newargs, :(Verilog.@final $identifier))
     elseif (input_list != nothing) &&
         (argument.head == :macrocall)  &&
-        (argument.args[1] == Symbol("@wire"))
+        ((argument.args[1] == Symbol("@input"))
+        || (argument.args[1] == Symbol("@wire")))
 
       #search through the input list for a corresponding input statement and set
       #the parameter value.

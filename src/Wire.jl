@@ -155,25 +155,10 @@ end
 
 Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::RelativeRange) = setindex!(dst, src, parse_msb(r, RD))
 
-
-doc"""
-  `@wire` binds a wire value to a certain size.
-"""
-macro wire(identifier, rangedescriptor)
-  esc(quote
-    #in the general case
-    if isa($identifier, Integer)
-      $identifier = Wire{$rangedescriptor}($identifier)
-    elseif isa($identifier, Wire)
-      $rangedescriptor == range($identifier) || throw(SizeMismatchError())
-    end
-  end)
-end
-
 #it's useful to declare a single wire shorthand
 typealias SingleWire Wire{0:0v}
 
 typealias OptionalWire{R}    Union{Void, Wire{R}}
 typealias OptionalSingleWire Union{Void, SingleWire}
 
-export Wire, @wire, SingleWire, OptionalWire, OptionalSingleWire
+export Wire, SingleWire, OptionalWire, OptionalSingleWire

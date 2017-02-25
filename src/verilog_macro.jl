@@ -53,8 +53,8 @@ function substitute_wire_inputs!(f::Expr)
   wire_macro_list
 end
 
-function inject_wire_macro!(f::Expr, identifier, structure)
-  inject!(f, :(@wire $identifier $structure))
+function inject_input_macro!(f::Expr, identifier, structure)
+  inject!(f, :(@input $identifier $structure))
 end
 
 function integer_translate(f::Expr)
@@ -65,8 +65,10 @@ function integer_translate(f::Expr)
   input_wire_list = substitute_wire_inputs!(f_integer)
 
   for key in keys(input_wire_list)
-    inject_wire_macro!(f_integer, key, input_wire_list[key])
+    inject_input_macro!(f_integer, key, input_wire_list[key])
   end
+
+  inject!(f_integer, :(Verilog.@verimode :integermode))
 
   f_integer
 end
@@ -109,8 +111,8 @@ macro verilog(f)
     #Last make version that substitutes all wires with integers.
     f_integer = integer_translate(f)
 
-    println(f_wiretext)
-
+    inject!(f, :(Verilog.@verimode :wiremode))
+    
     esc(quote
       #release all three forms of the function.
       Base.@__doc__ $f

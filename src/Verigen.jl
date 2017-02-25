@@ -135,15 +135,36 @@ macro verifin()
   end)
 end
 
-macro input(ident, struct)
-  ident_symbol = QuoteNode(ident)
+################################################################################
+
+doc"""
+  `@input identifier rangedescriptor`
+  
+  binds an input to a given range descriptor.
+"""
+macro input(identifier, rangedescriptor)
+  ident_symbol = QuoteNode(identifier)
   esc(quote
-    push!(__verilog_state.inputs, ($ident_symbol, $struct))
-    #also put it in the wires object.
-    __verilog_state.wires[$ident_symbol] = $struct
-    $ident = Verilog.WireObject{$struct}(string($ident_symbol))
+    if (__synth_mode == :verilog || __synth_mode == :modulecall)
+
+      push!(__verilog_state.inputs, ($ident_symbol, $rangedescriptor))
+      #also put it in the wires object.
+      __verilog_state.wires[$ident_symbol] = $rangedescriptor
+      $identifier = Verilog.WireObject{$rangedescriptor}(string($ident_symbol))
+    else
+      #in the general case
+      if isa($identifier, Integer)
+        $identifier = Wire{$rangedescriptor}($identifier)
+      elseif isa($identifier, Wire)
+        $rangedescriptor == range($identifier) || throw(SizeMismatchError())
+      end
+    end
   end)
 end
+
+export @input
+
+################################################################################
 
 type AssignError <: Exception; s::String; end
 

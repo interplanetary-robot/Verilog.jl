@@ -8,8 +8,8 @@ the `@verilog` macro.
 
 ```julia
 @verilog function arbitrary_binary(v1::Wire, v2::Wire{4:0v}, bits)
-  @name_suffix "$(bits)_bit"
-  @wire v1 (bits-1):0v
+  @suffix "$(bits)_bit"
+  @input v1 (bits-1):0v
   result = v1 ^ Wire(Wire(0b0000,4), v2[4:1v])
 end
 ```
@@ -53,7 +53,7 @@ will work fine, but the verilog will not correctly generate.
 ```julia
 @verilog function yet_another_arbitrary_binary(v1::Wire, bits)
   @suffix "$(bits)_bit"
-  @wire v1 (bits-1):0v
+  @input v1 (bits-1):0v
 
   previous_function = arbitrary_binary(v1, v1[6:2v], bits)
 
@@ -110,19 +110,19 @@ automatically link to the most significant bit in a wire.
   w5 = Wire{4:0v}()              #undefined wire
   w5[msb] = w1[0]
   w5[(msb-1):3v] = w1[1:0v]
-  w5[2:(msb-5)v] = w1[2:0v]
+  w5[2:(msb-4)v] = w1[2:0v]
 ```
 
 Ignoring the wire declarations, transpiles to:
 
 ```verilog
-  w2 = w1[5]
-  w3 = w1[5:1]
-  w4 = w1[3:2]
+  w2 = w1[5];
+  w3 = w1[5:1];
+  w4 = w1[3:2];
 
-  w5[5] = w1[0]
-  w5[4:3] = w1[1:0]
-  w5[2:0] = w1[2:0]
+  w5[5] = w1[0];
+  w5[4:3] = w1[1:0];
+  w5[2:0] = w1[2:0];
 ```
 
 ## A few notes.
@@ -142,10 +142,10 @@ If you have parameter(s) that you'd like to use to trigger creation of multiple
 instances of the module, use that.  If you have parameters that you're tuning,
 and won't use multiple versions, don't bother.
 
-### What's the `@wire` macro?  
+### What's the `@input` macro?  
 If you have a vaguely-typed wire parameter in your function, as in you'd like
-the number of wires to be dependent on a passed value, you will want to enforce
-that type dependence using this macro.  Bad things will happen otherwise.
+the number of wires to be dependent on a non-wire passed value, you will want to
+enforce that type dependence using this macro.  Bad things will happen otherwise.
 
 ### How does Verilog.jl know what to turn into the result?
 Since Julia automatically outputs the last line of your function as the result,
