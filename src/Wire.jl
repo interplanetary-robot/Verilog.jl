@@ -105,7 +105,7 @@ getindex{R}(w::Wire{R}, ridx::msb)   = getindex(w, R.stop - ridx.value)
 function getindex{R}(w::Wire{R}, r::VerilogRange)
   #returns a wire with the relevant selected values.
   issubset(r, R) || throw(BoundsError(w, r))
-  rr = ((r.stop >= r.start) ? (r.start:r.stop) : (r.stop:-1:r.start))
+  rr = ((r.stop >= r.start) ? (r.start:r.stop) : (r.start:-1:r.stop))
   (&)(w.assigned[rr + 1 - R.start]...) || throw(UnassignedError())
   Wire(w.values[rr + 1 - R.start])
 end

@@ -35,7 +35,7 @@ function substitute_wire_inputs!(f::Expr)
       #reset it to Unsigned.
       argument.args[2] = :Unsigned
     elseif argument.args[2] == :SingleWire
-      wire_macro_list[argument.args[1]] = :(0:0)
+      wire_macro_list[argument.args[1]] = :(0:0v)
       argument.args[2] = :Unsigned
     elseif isa(argument.args[2], Expr) &&
       (argument.args[2].head == :curly) &&
@@ -83,7 +83,7 @@ function strip_nonmodule!(f::Expr)
   for argument in f.args[2].args
     if isa(argument, Expr) &&
       (argument.head == :macrocall) &&
-      (argument.args[1] == Symbol("@name_suffix"))
+      (argument.args[1] == Symbol("@suffix"))
       continue
     end
     push!(stripped_block, argument)

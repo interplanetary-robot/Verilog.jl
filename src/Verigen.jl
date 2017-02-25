@@ -200,7 +200,7 @@ macro assign(ident, expr)
     ident_reference = ident.args[2]
     esc(quote
       assign_temp = $expr
-      parsed_reference = isa($ident_reference, VerilogRange) ? $ident_reference : Verilog.parse_msb(__module_params.wires[$ident_symbol], $ident_reference)
+      parsed_reference = isa($ident_reference, Verilog.VerilogRange) ? Verilog.parse_msb(__verilog_state.wires[$ident_symbol], $ident_reference) : $ident_reference
       if isa(assign_temp, Verilog.WireObject)
         if $ident_symbol in keys(__verilog_state.wires)
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt(parsed_reference), "= ", assign_temp.lexical_representation, ";"))
@@ -238,7 +238,7 @@ macro assign(ident, expr)
   end
 end
 
-macro name_suffix(stringvalue)
+macro suffix(stringvalue)
   esc(quote
     __verilog_state.module_name = string(__verilog_state.module_name, "_", $stringvalue)
     __module_params = (__verilog_state.module_name, __module_params[2:end]...)
@@ -250,4 +250,4 @@ macro final(identifier)
   esc(:(__verilog_state.last_assignment = $ident_symbol))
 end
 
-export @name_suffix
+export @suffix

@@ -96,7 +96,7 @@ Eg:
 * `Wire{12:1v}` is roughly equivalent to `wire [12:1]`
 * SingleWire is aliased to `Wire{0:0v}`, roughly equivalent to `wire`
 
-### What's that `@name_suffix` macro?  
+### What's that `@suffix` macro?  
 If you have parameter(s) that you'd like to use to trigger creation of multiple
 instances of the module, use that.  If you have parameters that you're tuning,
 and won't use multiple versions, don't bother.

@@ -170,10 +170,10 @@ function substitute_wire_inputs_as_wiretext!(f::Expr)
       #save the needed symbol and wire range parameter.
       push!(inputs_list, (argument.args[1], nothing))
     elseif argument.args[2] == :SingleWire
-      argument.args[2] = :(Verilog.WireObject{0:0})
+      argument.args[2] = :(Verilog.WireObject{0:0v})
 
       #save the needed symbol and wire range parameter.
-      push!(inputs_list, (argument.args[1], :(0:0)))
+      push!(inputs_list, (argument.args[1], :(0:0v)))
     elseif isa(argument.args[2], Expr) &&
       (argument.args[2].head == :curly) &&
       (argument.args[2].args[1] == :Wire) &&
