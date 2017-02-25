@@ -52,7 +52,7 @@ will work fine, but the verilog will not correctly generate.
 
 ```julia
 @verilog function yet_another_arbitrary_binary(v1::Wire, bits)
-  @name_suffix "$(bits)_bit"
+  @suffix "$(bits)_bit"
   @wire v1 (bits-1):0v
 
   previous_function = arbitrary_binary(v1, v1[6:2v], bits)
@@ -84,6 +84,47 @@ module yet_another_arbitrary_binary_8_bit(
 endmodule
 ```
 
+## Goodies.
+
+You can dereference wires using backward notation:
+
+```julia
+  w2[5:0v] = w1[1:6v]
+```
+
+transpiles to:
+
+```verilog
+  w2[5:0] = {w1[1], w1[2], w1[3], w1[4], w1[5], w1[6]};
+```
+
+You can use the ```msb``` keyword in both referencing and dereferencing to
+automatically link to the most significant bit in a wire.
+
+```julia
+  w1 = Wire{5:0v}(0b10101)       #constant wire
+  w2 = w1[msb]
+  w3 = w1[msb:1v]
+  w4 = w1[(msb-2):2v]
+
+  w5 = Wire{4:0v}()              #undefined wire
+  w5[msb] = w1[0]
+  w5[(msb-1):3v] = w1[1:0v]
+  w5[2:(msb-5)v] = w1[2:0v]
+```
+
+Ignoring the wire declarations, transpiles to:
+
+```verilog
+  w2 = w1[5]
+  w3 = w1[5:1]
+  w4 = w1[3:2]
+
+  w5[5] = w1[0]
+  w5[4:3] = w1[1:0]
+  w5[2:0] = w1[2:0]
+```
+
 ## A few notes.
 
 ### On the Wire type.  
@@ -108,7 +149,9 @@ that type dependence using this macro.  Bad things will happen otherwise.
 
 ### How does Verilog.jl know what to turn into the result?
 Since Julia automatically outputs the last line of your function as the result,
-the name of the last assigned identifier will be the name of the output.
+the name of the last assigned identifier will be the name of the output.  If you
+fail to return an value associated with an identifier, undefined behavior may
+result.  In the future, this will throw an error.
 
 ## On combinational logic.
 
@@ -117,11 +160,12 @@ not combinational.  Make sure you're never attempting to update any of your wire
 values.  If you do that, Verilog.jl will thread everything correctly.  To keep
 things easy to visualize for yourself, aggressively assign new identifiers for
 intermediate steps.  The `@verilog` macro will rewrite them and present them as
+wires in the implementation of the module.
 
 Coming Soon:
 * better documentation!
 * more unit tests!
-* support for arithmetic operators
+* multiple output wires
 * support for sequential logic as well as combinatorial logic
 * compiling verilog files into c library using Verilator
 * tools for automatic verification

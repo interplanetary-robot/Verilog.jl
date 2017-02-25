@@ -109,6 +109,8 @@ macro verilog(f)
     #Last make version that substitutes all wires with integers.
     f_integer = integer_translate(f)
 
+    println(f_wiretext)
+
     esc(quote
       #release all three forms of the function.
       Base.@__doc__ $f
