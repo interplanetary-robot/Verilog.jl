@@ -30,7 +30,7 @@ function strip_wire_inputs!(f::Expr)
       continue
     end
 
-    #a bare wire statement... Presume a @wire macro statement already exists.
+    #a bare wire statement... Presume a @input macro statement already exists.
     if argument.args[2] == :Wire
       #push a blank input symbol to the inputs_list stack.
       push!(inputs_list, (argument.args[1], nothing))
@@ -75,8 +75,7 @@ function linebyline_adaptor!(block::Expr, input_list = nothing)
       push!(newargs, :(Verilog.@final $identifier))
     elseif (input_list != nothing) &&
         (argument.head == :macrocall)  &&
-        ((argument.args[1] == Symbol("@input"))
-        || (argument.args[1] == Symbol("@wire")))
+        (argument.args[1] == Symbol("@input"))
 
       #search through the input list for a corresponding input statement and set
       #the parameter value.
@@ -96,7 +95,7 @@ function linebyline_adaptor!(block::Expr, input_list = nothing)
       push!(newargs, argument)
     elseif (argument.head == :if)
       linebyline_adaptor!(argument.args[2])
-      if length(argument) == 3
+      if length(argument.args) == 3
         linebyline_adaptor!(argument.args[3])
       end
       push!(newargs, argument)

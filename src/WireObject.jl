@@ -55,6 +55,8 @@ function Base.getindex{R}(w::WireObject{R}, r::VerilogRange)
 end
 
 Base.getindex{R}(w::WireObject{R}, r::RelativeRange) = getindex(w, parse_msb(r, R))
+Base.getindex{R}(w::WireObject{R}, ::Type{msb}) = getindex(w, R.stop)
+Base.getindex{R}(w::WireObject{R}, m::msb) = getindex(w, m.value)
 
 Base.getindex{R}(w::WireObject{R}, i::Int) = WireObject{0:0v}(string("$(lr(w))[$i]"))
 #Concatenation with wires using the Wire() operator.  Make the assumption that

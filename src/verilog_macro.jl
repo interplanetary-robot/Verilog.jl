@@ -112,7 +112,7 @@ macro verilog(f)
     f_integer = integer_translate(f)
 
     inject!(f, :(Verilog.@verimode :wiremode))
-    
+
     esc(quote
       #release all three forms of the function.
       Base.@__doc__ $f

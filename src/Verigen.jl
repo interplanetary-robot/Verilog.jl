@@ -98,7 +98,7 @@ macro verigen(s, p...)
   module_name = QuoteNode(s)
 
   if length(p) > 0
-    paramgen = :(__module_params = ($module_name, $(p...)...))
+    paramgen = :(__module_params = ($module_name, $p...))
   else
     paramgen = :(__module_params = ($module_name,))
   end
@@ -139,7 +139,7 @@ end
 
 doc"""
   `@input identifier rangedescriptor`
-  
+
   binds an input to a given range descriptor.
 """
 macro input(identifier, rangedescriptor)

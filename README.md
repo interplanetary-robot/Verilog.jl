@@ -1,7 +1,7 @@
 # Verilog.jl
 
 A Verilog-generation DSL for Julia.  Inspired by Chisel, but we like Julia
-better.
+better.  Not having to type in semicolons alone makes it worth it!
 
 Write your favorite verilog module as a julia function, by prefixing with
 the `@verilog` macro.
@@ -169,3 +169,4 @@ Coming Soon:
 * support for sequential logic as well as combinatorial logic
 * compiling verilog files into c library using Verilator
 * tools for automatic verification
+* automatically convert println() to nonsynthesizable "display"
