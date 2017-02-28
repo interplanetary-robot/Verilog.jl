@@ -55,3 +55,53 @@ function Base.:-{R}(tgt::Wire{R})
   result.values.chunks[1] = -tgt.values.chunks[1]
   result
 end
+
+function Base.:<{R,S}(lhs::Wire{R}, rhs::Wire{S})
+  (length(R) == length(S)) || throw(SizeMismatchError())
+  if (length(R) > 64)
+    warn("currently > 64 bit wires not supported.")
+    throw(SizeMismatchError())
+  end
+
+  result = Wire(lhs.values.chunks[1] < rhs.values.chunks[1])
+end
+
+function Base.:(<=){R,S}(lhs::Wire{R}, rhs::Wire{S})
+  (length(R) == length(S)) || throw(SizeMismatchError())
+  if (length(R) > 64)
+    warn("currently > 64 bit wires not supported.")
+    throw(SizeMismatchError())
+  end
+
+  result = Wire(lhs.values.chunks[1] <= rhs.values.chunks[1])
+end
+
+function Base.:>{R,S}(lhs::Wire{R}, rhs::Wire{S})
+  (length(R) == length(S)) || throw(SizeMismatchError())
+  if (length(R) > 64)
+    warn("currently > 64 bit wires not supported.")
+    throw(SizeMismatchError())
+  end
+
+  result = Wire(lhs.values.chunks[1] > rhs.values.chunks[1])
+end
+
+function Base.:(>=){R,S}(lhs::Wire{R}, rhs::Wire{S})
+  (length(R) == length(S)) || throw(SizeMismatchError())
+  if (length(R) > 64)
+    warn("currently > 64 bit wires not supported.")
+    throw(SizeMismatchError())
+  end
+
+  result = Wire(lhs.values.chunks[1] >= rhs.values.chunks[1])
+end
+
+function Base.:(==){R,S}(lhs::Wire{R}, rhs::Wire{S})
+  (length(R) == length(S)) || throw(SizeMismatchError())
+  if (length(R) > 64)
+    warn("currently > 64 bit wires not supported.")
+    throw(SizeMismatchError())
+  end
+
+  result = Wire(lhs.values.chunks[1] == rhs.values.chunks[1])
+end

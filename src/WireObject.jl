@@ -44,6 +44,13 @@ Base.:*{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R
 
 Base.:-{R}(lhs::WireObject{R}) = WireObject{range(length(R))}("-($(lr(lhs)))")
 
+#comparative operators
+Base.:>{R,S}(lhs::WireObject{R}, rhs::WireObject{S})  = WireObject{range(length(R))}("($(lr(lhs)) > $(lr(rhs)))")
+Base.:<{R,S}(lhs::WireObject{R}, rhs::WireObject{S})  = WireObject{range(length(R))}("($(lr(lhs)) < $(lr(rhs)))")
+Base.:(>=){R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) >= $(lr(rhs)))")
+Base.:(<=){R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) <= $(lr(rhs)))")
+Base.:(==){R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) == $(lr(rhs)))")
+
 function Base.getindex{R}(w::WireObject{R}, r::VerilogRange)
   if (r.stop == r.start)
     WireObject{range(length(r))}(string("$(lr(w))[$(r.stop)]"))
@@ -86,7 +93,20 @@ Base.:^{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}(st
 Base.:+{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) + $(lr(rhs)))")
 Base.:-{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) - $(lr(rhs)))")
 Base.:*{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R) + length(S))}("($(wo_concat(lhs)) * $(lr(rhs)))")
-
+#arithmetic operators with constants on the right:
 Base.:+{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) + $(wo_concat(rhs)))")
 Base.:-{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) - $(wo_concat(rhs)))")
 Base.:*{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R) + length(S))}("($(lr(lhs)) * $(wo_concat(rhs)))")
+
+#comparative operators with constants on the left:
+Base.:<{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) < $(lr(rhs)))")
+Base.:>{R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) > $(lr(rhs)))")
+Base.:(<=){R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) <= $(lr(rhs)))")
+Base.:(>=){R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) >= $(lr(rhs)))")
+Base.:(==){R,S}(lhs::Wire{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(wo_concat(lhs)) == $(lr(rhs)))")
+#comparative operators with constants on the right:
+Base.:<{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) < $(wo_concat(rhs)))")
+Base.:>{R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) > $(wo_concat(rhs)))")
+Base.:(<=){R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) <= $(wo_concat(rhs)))")
+Base.:(>=){R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) >= $(wo_concat(rhs)))")
+Base.:(==){R,S}(lhs::WireObject{R}, rhs::Wire{S}) = WireObject{range(length(R))}("($(lr(lhs)) == $(wo_concat(rhs)))")

@@ -58,6 +58,7 @@ function (::Type{Wire{R}}){R}(N::Unsigned)
   #pass this to the bitarray-based constructor.
   Wire{R}(ba, trues(l))
 end
+
 function (::Type{Wire{R}}){R}()
   Wire{R}(falses(length(R)), falses(length(R)))
 end

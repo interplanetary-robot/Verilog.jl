@@ -156,7 +156,7 @@ macro input(identifier, rangedescriptor)
       if isa($identifier, Integer)
         $identifier = Wire{$rangedescriptor}($identifier)
       elseif isa($identifier, Wire)
-        $rangedescriptor == range($identifier) || throw(SizeMismatchError())
+        $rangedescriptor == range($identifier) || throw(Verilog.SizeMismatchError())
       end
     end
   end)
