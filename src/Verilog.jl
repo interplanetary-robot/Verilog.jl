@@ -18,4 +18,7 @@ module Verilog
   #verilog generation passes these objects around.
   include("WireObject.jl")
 
+  #codegen contains resources to create .v files and verilate them.
+  include("codegen.jl")
+
 end # module

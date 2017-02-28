@@ -56,45 +56,24 @@ function Base.:-{R}(tgt::Wire{R})
   result
 end
 
+function trimInt64(n::Integer)
+  ~(-(one(UInt64) << n))
+end
+
 function Base.:<{R,S}(lhs::Wire{R}, rhs::Wire{S})
   (length(R) == length(S)) || throw(SizeMismatchError())
   if (length(R) > 64)
     warn("currently > 64 bit wires not supported.")
     throw(SizeMismatchError())
   end
+  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
 
-  result = Wire(lhs.values.chunks[1] < rhs.values.chunks[1])
+  mask = trimInt64(length(R))
+
+  result = Wire((lhs.values.chunks[1] & mask) < (rhs.values.chunks[1] & mask))
 end
 
-function Base.:(<=){R,S}(lhs::Wire{R}, rhs::Wire{S})
-  (length(R) == length(S)) || throw(SizeMismatchError())
-  if (length(R) > 64)
-    warn("currently > 64 bit wires not supported.")
-    throw(SizeMismatchError())
-  end
-
-  result = Wire(lhs.values.chunks[1] <= rhs.values.chunks[1])
-end
-
-function Base.:>{R,S}(lhs::Wire{R}, rhs::Wire{S})
-  (length(R) == length(S)) || throw(SizeMismatchError())
-  if (length(R) > 64)
-    warn("currently > 64 bit wires not supported.")
-    throw(SizeMismatchError())
-  end
-
-  result = Wire(lhs.values.chunks[1] > rhs.values.chunks[1])
-end
-
-function Base.:(>=){R,S}(lhs::Wire{R}, rhs::Wire{S})
-  (length(R) == length(S)) || throw(SizeMismatchError())
-  if (length(R) > 64)
-    warn("currently > 64 bit wires not supported.")
-    throw(SizeMismatchError())
-  end
-
-  result = Wire(lhs.values.chunks[1] >= rhs.values.chunks[1])
-end
+# >, <=, >= come for free.
 
 function Base.:(==){R,S}(lhs::Wire{R}, rhs::Wire{S})
   (length(R) == length(S)) || throw(SizeMismatchError())
@@ -102,6 +81,9 @@ function Base.:(==){R,S}(lhs::Wire{R}, rhs::Wire{S})
     warn("currently > 64 bit wires not supported.")
     throw(SizeMismatchError())
   end
+  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
 
-  result = Wire(lhs.values.chunks[1] == rhs.values.chunks[1])
+  mask = trimInt64(length(R))
+
+  result = Wire((lhs.values.chunks[1] & mask) == (rhs.values.chunks[1] & mask))
 end

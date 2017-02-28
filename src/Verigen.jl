@@ -32,10 +32,18 @@ type ModuleObject
   wiredesc::VerilogRange
 end
 
-const __global_definition_cache = Dict{Any,Tuple}()
-#caches the generated code.  Keys are Tuple{Symbol, ...} where ... are all other
-#parameters; Values are the verilog text for the function.
+#type for module cache members
+type ModuleCache
+  txt::String
+  module_name::Symbol
+  inputs::Vector{Symbol}
+  output::Symbol
+  output_shape::VerilogRange
+end
 
+const __global_definition_cache = Dict{Tuple,ModuleCache}()
+#caches the generated code.  Keys are Tuple{Symbol, Pairs...} where ... are
+#pairs of parameter_symbol => parameter.  Values are
 
 function describe(v::Verigen)
   output_symbol = v.last_assignment
@@ -66,10 +74,8 @@ end
 function modulecall(moduleparams, params)
   plist = [p.lexical_representation for p in params]
   gdef = __global_definition_cache[moduleparams]
-  slist = [".$(gdef[2][idx]) ($(plist[idx]))" for idx = 1:length(plist)]
-  oident = gdef[3]
-  ostruct = gdef[4]
-  ModuleObject(moduleparams[1], slist, oident, ostruct)
+  slist = [".$(gdef.inputs[idx]) ($(plist[idx]))" for idx = 1:length(plist)]
+  ModuleObject(gdef.module_name, slist, gdef.output, gdef.output_shape)
 end
 
 macro verimode(s, p...)
@@ -98,7 +104,12 @@ macro verigen(s, p...)
   module_name = QuoteNode(s)
 
   if length(p) > 0
-    paramgen = :(__module_params = ($module_name, $p...))
+    listgen = :(ppairs = [])
+    for parameter in p
+      psym = QuoteNode(parameter)
+      listgen = :($listgen; push!(ppairs, $psym => $parameter))
+    end
+    paramgen = :($listgen; __module_params = ($module_name, ppairs...))
   else
     paramgen = :(__module_params = ($module_name,))
   end
@@ -108,7 +119,7 @@ macro verigen(s, p...)
 
     if haskey(Verilog.__global_definition_cache, __module_params)
       if __synth_mode == :verilog
-        return Verilog.__global_definition_cache[__module_params][1]
+        return Verilog.__global_definition_cache[__module_params].txt
       elseif __synth_mode == :modulecall
         return Verilog.modulecall(__module_params, __call_parameters)
       end
@@ -122,7 +133,8 @@ macro verifin()
   esc(quote
     txt = Verilog.describe(__verilog_state)
     #set the global definition cache.
-    Verilog.__global_definition_cache[__module_params] = (txt,
+    Verilog.__global_definition_cache[__module_params] = Verilog.ModuleCache(txt,
+      __verilog_state.module_name,
       [vi[1] for vi in __verilog_state.inputs],
       __verilog_state.last_assignment,
       __verilog_state.wires[__verilog_state.last_assignment])
@@ -221,7 +233,16 @@ macro assign(ident, expr)
     ident_reference = ident.args[2]
     esc(quote
       assign_temp = $expr
-      parsed_reference = isa($ident_reference, Verilog.VerilogRange) ? Verilog.parse_msb(__verilog_state.wires[$ident_symbol], $ident_reference) : $ident_reference
+      if isa($ident_reference, Verilog.RelativeRange)
+        parsed_reference = Verilog.parse_msb($ident_reference, __verilog_state.wires[$ident_symbol])
+      elseif isa($ident_reference, Verilog.msb)
+        parsed_reference = __verilog_state.wires[$ident_symbol].stop - ($ident_reference).value
+      elseif isa($ident_reference, Type{Verilog.msb})
+        parsed_reference = __verilog_state.wires[$ident_symbol].stop
+      else
+        parsed_reference = $ident_reference
+      end
+
       if isa(assign_temp, Verilog.WireObject)
         if $ident_symbol in keys(__verilog_state.wires)
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt(parsed_reference), "= ", assign_temp.lexical_representation, ";"))
@@ -262,7 +283,6 @@ end
 macro suffix(stringvalue)
   esc(quote
     __verilog_state.module_name = string(__verilog_state.module_name, "_", $stringvalue)
-    __module_params = (__verilog_state.module_name, __module_params[2:end]...)
   end)
 end
 
