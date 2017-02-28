@@ -45,6 +45,10 @@ const __global_definition_cache = Dict{Tuple,ModuleCache}()
 #caches the generated code.  Keys are Tuple{Symbol, Pairs...} where ... are
 #pairs of parameter_symbol => parameter.  Values are
 
+const __global_dependency_cache = Dict{Tuple, Vector{Tuple}}()
+#caches a list of dependencies.  Keys are the same tuple structure as above,
+#where pairs are a parameter_symbol =>  parameter.
+
 function describe(v::Verigen)
   output_symbol = v.last_assignment
 
