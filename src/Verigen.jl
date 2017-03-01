@@ -6,8 +6,9 @@ type Verigen
   wires ::Dict{Symbol,VerilogRange}
   assignments::Array{String}
   modulecalls::Array{String}
+  dependencies::Set{Tuple}
   last_assignment::Symbol
-  Verigen(s::Symbol) = new(s, Tuple{Symbol,VerilogRange}[], Dict{Symbol,VerilogRange}(),String[], String[],:nothing)
+  Verigen(s::Symbol) = new(s, Tuple{Symbol,VerilogRange}[], Dict{Symbol,VerilogRange}(),String[], String[], Set{Tuple}(),:nothing)
 end
 
 #formatting for input declarations only.
@@ -26,6 +27,7 @@ function v_fmt(i::Integer)
 end
 
 type ModuleObject
+  moduleparams::Tuple
   modulename::Symbol
   inputlist::Vector{String}
   outputname::Symbol
@@ -45,7 +47,7 @@ const __global_definition_cache = Dict{Tuple,ModuleCache}()
 #caches the generated code.  Keys are Tuple{Symbol, Pairs...} where ... are
 #pairs of parameter_symbol => parameter.  Values are
 
-const __global_dependency_cache = Dict{Tuple, Vector{Tuple}}()
+const __global_dependency_cache = Dict{Tuple, Set{Tuple}}()
 #caches a list of dependencies.  Keys are the same tuple structure as above,
 #where pairs are a parameter_symbol =>  parameter.
 
@@ -79,7 +81,7 @@ function modulecall(moduleparams, params)
   plist = [p.lexical_representation for p in params]
   gdef = __global_definition_cache[moduleparams]
   slist = [".$(gdef.inputs[idx]) ($(plist[idx]))" for idx = 1:length(plist)]
-  ModuleObject(gdef.module_name, slist, gdef.output, gdef.output_shape)
+  ModuleObject(moduleparams, gdef.module_name, slist, gdef.output, gdef.output_shape)
 end
 
 macro verimode(s, p...)
@@ -142,6 +144,10 @@ macro verifin()
       [vi[1] for vi in __verilog_state.inputs],
       __verilog_state.last_assignment,
       __verilog_state.wires[__verilog_state.last_assignment])
+
+    #populate the global dependency cache.
+    Verilog.__global_dependency_cache[__module_params] = __verilog_state.dependencies
+
     #return the correct output type depending on what we've set out.
     if __synth_mode == :verilog
       return txt
@@ -215,12 +221,14 @@ macro assign(ident, expr)
           $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
         end
       elseif isa(assign_temp, Verilog.ModuleObject)
-        mname = assign_temp.modulename
+        mname = assign_temp.moduleparams[1]
         idsym = $ident_symbol
         mcaller = string(assign_temp.modulename, "_", idsym)
         iplist = assign_temp.inputlist
         mout = assign_temp.outputname
         push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    .$mout ($idsym));\n"))
+        #add this to the list of dependencies.
+        push!(__verilog_state.dependencies, assign_temp.moduleparams)
         #create the wire associated with this module call.
         __verilog_state.wires[$ident_symbol] = assign_temp.wiredesc
         #this could be the last assignment.

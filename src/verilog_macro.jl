@@ -113,6 +113,9 @@ macro verilog(f)
 
     inject!(f, :(Verilog.@verimode :wiremode))
 
+    #println(f_module)
+    #println(f_wiretext)
+
     esc(quote
       #release all three forms of the function.
       Base.@__doc__ $f
