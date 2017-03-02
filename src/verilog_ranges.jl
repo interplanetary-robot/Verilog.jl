@@ -110,3 +110,11 @@ Base.eltype(v::VerilogRange) = Int64
 Base.length(v::VerilogRange) = ((v.stop > v.start) ? (v.stop - v.start) : (v.start - v.stop)) + 1
 
 Base.show(io::IO, v::VerilogRange) = print(io, v.stop, ":", v.start, "v")
+
+function Base.reverse(r::VerilogRange)
+  if r.start < r.stop
+    r.stop:-1:r.start
+  else
+    r.stop:r.start
+  end
+end

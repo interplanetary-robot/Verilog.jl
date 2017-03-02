@@ -20,5 +20,6 @@ module Verilog
 
   #codegen contains resources to create .v files and verilate them.
   include("codegen.jl")
+  include("verilator-adapter.c.jl")
 
 end # module
