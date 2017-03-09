@@ -73,6 +73,10 @@ function linebyline_adaptor!(block::Expr, input_list = nothing)
     if isa(argument, Symbol)
       identifier = argument
       push!(newargs, :(Verilog.@final $identifier))
+    elseif (argument.head == :tuple)
+      #check if we're trying to return a tuple of wire symbols.
+      identifiers = argument.args
+      push!(newargs, :(Verilog.@final $(identifiers...)))
     elseif (input_list != nothing) &&
         (argument.head == :macrocall)  &&
         (argument.args[1] == Symbol("@input"))
@@ -101,8 +105,15 @@ function linebyline_adaptor!(block::Expr, input_list = nothing)
       push!(newargs, argument)
     elseif (argument.head == :return)
       if isa(argument.args[1], Symbol)
+        #check to see if we're trying to return a symbol.
         identifier = argument.args[1]
         push!(newargs, :(Verilog.@final $identifier))
+      elseif isa(argument.args[1], Expr) && (argument.args[1].head == :tuple)
+        #check if we're trying to return a tuple of wire symbols.
+        identifiers = argument.args[1].args
+        push!(newargs, :(Verilog.@final $(identifiers...)))
+      else
+        throw(ArgumentError("@verilog functions may only return wires or tuples of wires."))
       end
       push!(newargs, :(@goto fin))
     else

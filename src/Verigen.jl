@@ -298,8 +298,8 @@ macro suffix(stringvalue)
   end)
 end
 
-macro final(identifier)
-  ident_symbol = QuoteNode(identifier)
+macro final(identifiers...)
+  ident_symbol = QuoteNode(identifiers[1])
   esc(:(__verilog_state.last_assignment = $ident_symbol))
 end
 
