@@ -70,6 +70,7 @@ end
 ################################################################################
 # conversion away from wires - necessary for integer reintepretation of verilog
 # wire definitons
+
 function Base.convert{R}(::Type{Unsigned}, w::Wire{R})
   if length(R) <= 64
     return w.values.chunks[1]
@@ -77,6 +78,17 @@ function Base.convert{R}(::Type{Unsigned}, w::Wire{R})
     return UnsignedBigInt(w.values)
   end
 end
+
+# also allow conversion from wire tuples - will be automatically triggered during
+# integer reinterpretations.
+
+function Base.convert(::Type{Unsigned}, wt::Tuple)::Unsigned
+  for el in wt
+    !isa(el, Wire) && throw(ArgumentError("Tuple must be a wire tuple"))
+  end
+  Wire(wt...)  #expand the tuple.  will be autoconverted to unsigned.
+end
+
 
 ################################################################################
 
@@ -159,7 +171,9 @@ Base.setindex!{RD, RS}(dst::Wire{RD}, src::Wire{RS}, r::RelativeRange) = setinde
 #it's useful to declare a single wire shorthand
 typealias SingleWire Wire{0:0v}
 
+#=
 typealias OptionalWire{R}    Union{Void, Wire{R}}
 typealias OptionalSingleWire Union{Void, SingleWire}
+=#
 
 export Wire, SingleWire, OptionalWire, OptionalSingleWire

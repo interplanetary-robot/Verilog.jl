@@ -99,6 +99,12 @@ function linebyline_adaptor!(block::Expr, input_list = nothing)
         linebyline_adaptor!(argument.args[3])
       end
       push!(newargs, argument)
+    elseif (argument.head == :return)
+      if isa(argument.args[1], Symbol)
+        identifier = argument.args[1]
+        push!(newargs, :(Verilog.@final $identifier))
+      end
+      push!(newargs, :(@goto fin))
     else
       push!(newargs, argument)
     end
@@ -109,6 +115,7 @@ function linebyline_adaptor!(block::Expr, input_list = nothing)
 end
 
 function inject_verilog_finisher!(f::Expr)
+  push!(f.args[2].args, :(@label fin))
   push!(f.args[2].args, :(Verilog.@verifin))
 end
 

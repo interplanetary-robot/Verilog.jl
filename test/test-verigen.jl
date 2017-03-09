@@ -13,7 +13,6 @@ module g(
   output [7:0] new_wire);
 
   assign new_wire = my_wire;
-
 endmodule
 """
 
@@ -31,7 +30,6 @@ module h(
   output [7:0] new_wire);
 
   assign new_wire = ~(my_wire);
-
 endmodule
 """
 
@@ -52,7 +50,6 @@ module arbitrary_binary_8_bit(
   output [7:0] result);
 
   assign result = (v1 ^ {4'b0000,v2[4:1]});
-
 endmodule
 """
 
@@ -70,6 +67,5 @@ module set_inf_zero_bits(
   output [1:0] result);
 
   assign result = {(allzeros & signbit),(allzeros & ~(signbit))};
-
 endmodule
 """
