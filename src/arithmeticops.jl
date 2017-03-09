@@ -87,3 +87,53 @@ function Base.:(==){R,S}(lhs::Wire{R}, rhs::Wire{S})
 
   result = Wire((lhs.values.chunks[1] & mask) == (rhs.values.chunks[1] & mask))
 end
+
+################################################################################
+## shifters
+
+function Base.:(<<){R,S}(lhs::Wire{R}, rhs::Wire{S})
+  if (length(R) > 64)
+    warn("currently > 64 bit wires not supported.")
+    throw(SizeMismatchError())
+  end
+  if (length(S) > 64)
+    warn("> 64 bit wires for shifter RHS not supported.")
+    throw(SizeMismatchError())
+  end
+  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
+  result = Wire(lhs.values.chunks[1] << rhs.values.chunks[1], length(R))
+end
+
+function Base.:(>>){R,S}(lhs::Wire{R}, rhs::Wire{S})
+  if (length(R) > 64)
+    warn("currently > 64 bit wires not supported.")
+    throw(SizeMismatchError())
+  end
+  if (length(S) > 64)
+    warn("> 64 bit wires for shifter RHS not supported.")
+    throw(SizeMismatchError())
+  end
+  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
+  result = Wire(lhs.values.chunks[1] >> rhs.values.chunks[1], length(R))
+end
+
+function Base.:(>>>){R,S}(lhs::Wire{R}, rhs::Wire{S})
+  if (length(R) > 64)
+    warn("currently > 64 bit wires not supported.")
+    throw(SizeMismatchError())
+  end
+  if (length(S) > 64)
+    warn("> 64 bit wires for shifter RHS not supported.")
+    throw(SizeMismatchError())
+  end
+  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
+
+  #if the top value is true, then we'll have to spoof negativity.
+  #the trimInt64() function can help, by masking those invisible values
+  #as ones.
+  if (lhs.values[end] == true)
+    lhs.values.chunks[1] |= ~trimInt64(length(R))
+  end
+
+  result = Wire(lhs.values.chunks[1] >> rhs.values.chunks[1], length(R))
+end

@@ -44,6 +44,11 @@ Base.:*{R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R
 
 Base.:-{R}(lhs::WireObject{R}) = WireObject{range(length(R))}("-($(lr(lhs)))")
 
+#shifters
+Base.:(<<){R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) << $(lr(rhs)))")
+Base.:(>>){R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) >> $(lr(rhs)))")
+Base.:(>>>){R,S}(lhs::WireObject{R}, rhs::WireObject{S}) = WireObject{range(length(R))}("($(lr(lhs)) >>> $(lr(rhs)))")
+
 #comparative operators
 Base.:>{R,S}(lhs::WireObject{R}, rhs::WireObject{S})  = WireObject{range(length(R))}("($(lr(lhs)) > $(lr(rhs)))")
 Base.:<{R,S}(lhs::WireObject{R}, rhs::WireObject{S})  = WireObject{range(length(R))}("($(lr(lhs)) < $(lr(rhs)))")

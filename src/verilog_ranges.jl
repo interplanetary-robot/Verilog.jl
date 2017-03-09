@@ -88,6 +88,13 @@ end
 function Base.:-(::Type{msb}, n::Integer)
   msb(n)
 end
+function Base.:-(m::msb, n::Integer)
+  msb(m.value + n)
+end
+function Base.:+(m::msb, n::Integer)
+  (n > m.value) && throw(ArgumentError("attempt to dereference beyond msb"))
+  msb(m.value - n)
+end
 
 function parse_msb(rr::RelativeRange, vr::VerilogRange)
   true_start = isa(rr.start, msb) ? vr.stop - rr.start.value : rr.start
