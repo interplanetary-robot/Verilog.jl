@@ -2,13 +2,13 @@
 
 type Verigen
   module_name::Symbol
-  inputs::Vector{Tuple{Symbol,VerilogRange}}
+  inputs::Vector{Pair{Symbol,VerilogRange}}
   wires ::Dict{Symbol,VerilogRange}
   assignments::Array{String}
   modulecalls::Array{String}
   dependencies::Set{Tuple}
-  last_assignment::Symbol
-  Verigen(s::Symbol) = new(s, Tuple{Symbol,VerilogRange}[], Dict{Symbol,VerilogRange}(),String[], String[], Set{Tuple}(),:nothing)
+  last_assignments::Vector{Pair{Symbol,VerilogRange}}
+  Verigen(s::Symbol) = new(s, Tuple{Symbol,VerilogRange}[], Dict{Symbol,VerilogRange}(),String[], String[], Set{Tuple}(),[])
 end
 
 #formatting for input declarations only.
@@ -30,8 +30,7 @@ type ModuleObject
   moduleparams::Tuple
   modulename::Symbol
   inputlist::Vector{String}
-  outputname::Symbol
-  wiredesc::VerilogRange
+  outputlist::Vector{Pair{Symbol, VerilogRange}}
 end
 
 #type for module cache members
@@ -39,8 +38,7 @@ type ModuleCache
   txt::String
   module_name::Symbol
   inputs::Vector{Symbol}
-  output::Symbol
-  output_shape::VerilogRange
+  outputlist::Vector{Pair{Symbol, VerilogRange}}
 end
 
 const __global_definition_cache = Dict{Tuple,ModuleCache}()
