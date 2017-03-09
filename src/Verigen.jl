@@ -50,16 +50,17 @@ const __global_dependency_cache = Dict{Tuple, Set{Tuple}}()
 #where pairs are a parameter_symbol =>  parameter.
 
 function describe(v::Verigen)
-  output_symbol = v.last_assignment
+  outputs = v.last_assignments
 
   inpnames = Set{Symbol}([inp[1] for inp in v.inputs])
 
   io_declarations = string("\n  ",
     join([string("input ", v_decl_fmt(input[2]), input[1]) for input in v.inputs], ",\n  "),
-    ",\n  output ", v_decl_fmt(v.wires[output_symbol]), output_symbol)
+    ",\n  ",
+    join([string("output ", v_decl_fmt(output[2]), output[1]) for output in outputs], ",\n  "))
 
   wirestrings = [string("  wire ", v_decl_fmt(v.wires[wire]), wire, ";") for wire in keys(v.wires) if
-    (!(wire in inpnames)) && (wire != output_symbol)]
+    (!(wire in inpnames)) && !(wire in [output[1] for output in outputs])]
 
   wire_declarations = string(join(wirestrings, "\n"), length(wirestrings) > 0 ? "\n\n" : "")
 
@@ -139,8 +140,7 @@ macro verifin()
     Verilog.__global_definition_cache[__module_params] = Verilog.ModuleCache(txt,
       __verilog_state.module_name,
       [vi[1] for vi in __verilog_state.inputs],
-      __verilog_state.last_assignment,
-      __verilog_state.wires[__verilog_state.last_assignment])
+      __verilog_state.last_assignments)
 
     #populate the global dependency cache.
     Verilog.__global_dependency_cache[__module_params] = __verilog_state.dependencies
@@ -166,7 +166,7 @@ macro input(identifier, rangedescriptor)
   esc(quote
     if (__synth_mode == :verilog || __synth_mode == :modulecall)
 
-      push!(__verilog_state.inputs, ($ident_symbol, $rangedescriptor))
+      push!(__verilog_state.inputs, ($ident_symbol => $rangedescriptor))
       #also put it in the wires object.
       __verilog_state.wires[$ident_symbol] = $rangedescriptor
       $identifier = Verilog.WireObject{$rangedescriptor}(string($ident_symbol))
@@ -189,7 +189,6 @@ type AssignError <: Exception; s::String; end
 
 macro assign(ident, expr)
   #later, parse more complicated assignment statements.
-
   if isa(ident, Symbol)
     ident_symbol = QuoteNode(ident)
 
@@ -206,7 +205,7 @@ macro assign(ident, expr)
           $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
         end
         #remember the last assignment
-        __verilog_state.last_assignment = $ident_symbol
+        __verilog_state.last_assignments = [$ident_symbol => range(assign_temp)]
       elseif isa(assign_temp, Wire)
         #if we're passing it a wire object, then it must be either a direct
         #wire declaration or some sort of wire constant.
@@ -230,7 +229,7 @@ macro assign(ident, expr)
         #create the wire associated with this module call.
         __verilog_state.wires[$ident_symbol] = assign_temp.wiredesc
         #this could be the last assignment.
-        __verilog_state.last_assignment = $ident_symbol
+        __verilog_state.last_assignments = [$ident_symbol => range(assign_temp)]
         #and also instantiate a new variable with this parameter.
         $ident = Verilog.WireObject{assign_temp.wiredesc}(string($ident_symbol))
       else
@@ -268,7 +267,7 @@ macro assign(ident, expr)
           idsym = string($ident_symbol, Verilog.v_fmt(parsed_reference))
           push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    .$mout ($idsym));\n"))
           #this could be the last assignment.
-          __verilog_state.last_assignment = $ident_symbol
+          __verilog_state.last_assignment = [$ident_symbol => range(assign_temp)]
         else
           throw(AssignError("can't make a partial assignment to a nonexistent wire."))
         end
@@ -297,8 +296,19 @@ macro suffix(stringvalue)
 end
 
 macro final(identifiers...)
-  ident_symbol = QuoteNode(identifiers[1])
-  esc(:(__verilog_state.last_assignment = $ident_symbol))
+  if length(identifiers) == 1
+    ident_symbol = QuoteNode(identifiers[1])
+    esc(:(__verilog_state.last_assignments = [$ident_symbol => __verilog_state.wires[$ident_symbol]]))
+  else
+    println(:($identifiers))
+    esc(quote
+      pairlist = []
+      for sym in $identifiers
+        push!(pairlist, sym => __verilog_state.wires[sym])
+      end
+      __verilog_state.last_assignments = pairlist
+    end)
+  end
 end
 
 export @suffix
