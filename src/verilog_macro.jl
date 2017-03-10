@@ -113,7 +113,7 @@ macro verilog(f)
 
     inject!(f, :(Verilog.@verimode :wiremode))
 
-    println(f_module)
+    #println(f_module)
 
     esc(quote
       #release all three forms of the function.

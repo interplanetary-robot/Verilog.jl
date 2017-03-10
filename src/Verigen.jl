@@ -79,7 +79,7 @@ function modulecall(moduleparams, params)
   plist = [p.lexical_representation for p in params]
   gdef = __global_definition_cache[moduleparams]
   slist = [".$(gdef.inputs[idx]) ($(plist[idx]))" for idx = 1:length(plist)]
-  ModuleObject(moduleparams, gdef.module_name, slist, gdef.output, gdef.output_shape)
+  ModuleObject(moduleparams, gdef.module_name, slist, gdef.outputlist)
 end
 
 macro verimode(s, p...)
@@ -283,6 +283,80 @@ macro assign(ident, expr)
         $ident = $expr
       end
     end)
+  elseif ident.head == :tuple
+    ident_list = ident.args
+    assign_temp = expr
+
+    #unroll the process of assigning the arguments.  This gets created no matter what,
+    #it might not get used in the case that some other set of variables is using
+    #a tuple assignment.
+    assignment_code = :()
+    for idx = 1:length(ident_list)
+      ident = ident_list[idx]
+      ident_symbol = QuoteNode(ident_list[idx])
+      if isa(ident, Symbol)
+        #unroll this!
+        assignment_code = quote
+          $assignment_code
+          #update the full list of identifiers.
+          push!(idlist, string($ident_symbol))
+          push!(oplist, string(".", output_list[$idx].first, " (", $ident_symbol, ")"))
+          #create the wire associated with this module call.
+          __verilog_state.wires[$ident_symbol] = output_list[$idx].second
+          #instantiate a new variable with this parameter.
+          $ident = Verilog.WireObject{output_list[$idx].second}(string($ident_symbol))
+        end
+
+      elseif isa(ident, Expr) && (ident.head == :ref)
+
+        ident_symbol = QuoteNode(ident.args[1])
+        ident_range = ident.args[2]
+
+        assignment_code = quote
+          $assignment_code
+          wirerange = output_list[$idx].second
+          dest_range = $ident_range
+          if isa(dest_range, Integer)
+            push!(idlist, string($ident_symbol, "_", dest_range))
+          else
+            push!(idlist, string($ident_symbol, "_", dest_range.start == dest_range.stop ? dest_range.start : "$(wirerange.stop)_$(wirerange.start)"))
+          end
+          push!(oplist, string(".", output_list[$idx].first, " (", $ident_symbol, strip(Verilog.v_fmt(wirerange)),")"))
+        end
+
+      else #do nothing.
+      end
+    end
+
+    #we're trying to make a tuple assignment.
+    esc(quote
+      if isa($assign_temp, Verilog.ModuleObject)
+
+        #assign the module name.
+        mname = $assign_temp.modulename
+        idlist = String[]
+        input_list = $assign_temp.inputlist
+        output_list = $assign_temp.outputlist
+        ident_list = $ident_list
+        iplist = $assign_temp.inputlist
+        oplist = String[]
+
+        #do the unrolled assignment.
+        $assignment_code
+
+        mcaller = string($assign_temp.modulename, "_", join(idlist, "_"))
+
+        #add this to the list of module calls.
+        push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), "\n    ",
+                                                                              join(oplist, ",\n    "), ");\n"))
+        #add this to the list of dependencies.
+        push!(__verilog_state.dependencies, $assign_temp.moduleparams)
+
+      else
+        #just do the boring assignment
+        $ident = $assign_temp
+      end
+    end)
   else
     #transparently pass on the assigment without intercepting it.
     esc(:($ident = $expr))
@@ -300,7 +374,7 @@ macro final(identifiers...)
     ident_symbol = QuoteNode(identifiers[1])
     esc(:(__verilog_state.last_assignments = [$ident_symbol => __verilog_state.wires[$ident_symbol]]))
   else
-    println(:($identifiers))
+    #println(:($identifiers))
     esc(quote
       pairlist = []
       for sym in $identifiers
