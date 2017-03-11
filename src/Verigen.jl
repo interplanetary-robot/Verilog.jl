@@ -222,16 +222,17 @@ macro assign(ident, expr)
         idsym = $ident_symbol
         mcaller = string(assign_temp.modulename, "_", idsym)
         iplist = assign_temp.inputlist
-        mout = assign_temp.outputname
+        mout = assign_temp.outputlist[1].first
         push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    .$mout ($idsym));\n"))
         #add this to the list of dependencies.
         push!(__verilog_state.dependencies, assign_temp.moduleparams)
         #create the wire associated with this module call.
-        __verilog_state.wires[$ident_symbol] = assign_temp.wiredesc
+        assign_range = assign_temp.outputlist[1].second
+        __verilog_state.wires[$ident_symbol] = assign_range
         #this could be the last assignment.
-        __verilog_state.last_assignments = [$ident_symbol => range(assign_temp)]
+        __verilog_state.last_assignments = [$ident_symbol => assign_range]
         #and also instantiate a new variable with this parameter.
-        $ident = Verilog.WireObject{assign_temp.wiredesc}(string($ident_symbol))
+        $ident = Verilog.WireObject{assign_range}(string($ident_symbol))
       else
         #just pass the value to ident, without touching it.
         $ident = assign_temp
@@ -262,10 +263,11 @@ macro assign(ident, expr)
         if $ident_symbol in keys(__verilog_state.wires)
           mname = assign_temp.modulename
           mcaller = string(assign_temp.modulename, "_", $ident_symbol, "_", (parsed_reference).stop, "_", (parsed_reference).start)
-          mout = assign_temp.outputname
+          mout = assign_temp.outputlist[1].first
           iplist = assign_temp.inputlist
           idsym = string($ident_symbol, Verilog.v_fmt(parsed_reference))
           push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    .$mout ($idsym));\n"))
+
           #this could be the last assignment.
           __verilog_state.last_assignment = [$ident_symbol => range(assign_temp)]
         else
@@ -347,7 +349,7 @@ macro assign(ident, expr)
         mcaller = string($assign_temp.modulename, "_", join(idlist, "_"))
 
         #add this to the list of module calls.
-        push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), "\n    ",
+        push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    ",
                                                                               join(oplist, ",\n    "), ");\n"))
         #add this to the list of dependencies.
         push!(__verilog_state.dependencies, $assign_temp.moduleparams)

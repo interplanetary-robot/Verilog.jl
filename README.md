@@ -84,6 +84,8 @@ module yet_another_arbitrary_binary_8_bit(
 endmodule
 ```
 
+You can also have multiple outputs by returning a
+
 ## Goodies.
 
 You can dereference wires using backward notation:
@@ -165,8 +167,8 @@ wires in the implementation of the module.
 Coming Soon:
 * better documentation!
 * more unit tests!
-* multiple output wires
 * support for sequential logic as well as combinatorial logic
-* compiling verilog files into c library using Verilator
+* support for input and output labeling
+* support for muxes, wire arrays, and simple conditionals
 * tools for automatic verification
 * automatically convert println() to nonsynthesizable "display"

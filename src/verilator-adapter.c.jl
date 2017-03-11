@@ -45,7 +45,10 @@ $setters
 end
 
 function verilator_getter(ident)
-  output = __global_definition_cache[ident].output
+  if length(__global_definition_cache[ident].outputlist) != 1
+    throw(ArgumentError("malformed @verilog function $ident"))
+  end
+  output = __global_definition_cache[ident].outputlist[1].first
   modname = __global_definition_cache[ident].module_name
 """
 extern "C" unsigned long long get(){
