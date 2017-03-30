@@ -102,18 +102,25 @@ macro verilog(f)
   if f.head == :function
     #make three copies of the function.
 
-    #First, make the module version.
+    #make the module version.
     f_module = module_translate(f)
     f_wiretext = wiretext_translate(f)
 
+    println(f_wiretext)
+
     #strip module instructions
     strip_nonmodule!(f)
-    #Last make version that substitutes all wires with integers.
+
+    #make version that substitutes all wires with integers.
     f_integer = integer_translate(f)
+    #make a version that substitutes wires with a fused integer.
+    make_fused = false
+
+    if (make_fused)
+      f_fusedinteger = fused_integer_translate(f)
+    end
 
     inject!(f, :(Verilog.@verimode :wiremode))
-
-    #println(f_module)
 
     esc(quote
       #release all three forms of the function.

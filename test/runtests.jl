@@ -17,3 +17,6 @@ include("test-verigen.jl")
 
 #test multiple outputs
 include("test-multioutput.jl")
+
+#test wire arrays
+include("test-wirearray.jl")

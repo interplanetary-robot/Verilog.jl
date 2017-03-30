@@ -3,12 +3,12 @@
 type Verigen
   module_name::Symbol
   inputs::Vector{Pair{Symbol,VerilogRange}}
-  wires ::Dict{Symbol,VerilogRange}
+  wires ::Dict{Symbol,Tuple{VerilogRange, Tuple}}
   assignments::Array{String}
   modulecalls::Array{String}
   dependencies::Set{Tuple}
   last_assignments::Vector{Pair{Symbol,VerilogRange}}
-  Verigen(s::Symbol) = new(s, Tuple{Symbol,VerilogRange}[], Dict{Symbol,VerilogRange}(),String[], String[], Set{Tuple}(),[])
+  Verigen(s::Symbol) = new(s, Tuple{Symbol,VerilogRange}[], Dict{Symbol,Tuple{VerilogRange, Tuple}}(),String[], String[], Set{Tuple}(),[])
 end
 
 #formatting for input declarations only.
@@ -49,6 +49,14 @@ const __global_dependency_cache = Dict{Tuple, Set{Tuple}}()
 #caches a list of dependencies.  Keys are the same tuple structure as above,
 #where pairs are a parameter_symbol =>  parameter.
 
+
+function wire_shape(w::Tuple{VerilogRange, Tuple})
+  v_decl_fmt(w[1])
+end
+function array_shape(w::Tuple{VerilogRange, Tuple})
+  join(["[$(l-1):0]" for l in w[2]])
+end
+
 function describe(v::Verigen)
   outputs = v.last_assignments
 
@@ -59,7 +67,7 @@ function describe(v::Verigen)
     ",\n  ",
     join([string("output ", v_decl_fmt(output[2]), output[1]) for output in outputs], ",\n  "))
 
-  wirestrings = [string("  wire ", v_decl_fmt(v.wires[wire]), wire, ";") for wire in keys(v.wires) if
+  wirestrings = [string("  wire ", wire_shape(v.wires[wire]), wire, array_shape(v.wires[wire]), ";") for wire in keys(v.wires) if
     (!(wire in inpnames)) && !(wire in [output[1] for output in outputs])]
 
   wire_declarations = string(join(wirestrings, "\n"), length(wirestrings) > 0 ? "\n\n" : "")
@@ -168,7 +176,7 @@ macro input(identifier, rangedescriptor)
 
       push!(__verilog_state.inputs, ($ident_symbol => $rangedescriptor))
       #also put it in the wires object.
-      __verilog_state.wires[$ident_symbol] = $rangedescriptor
+      __verilog_state.wires[$ident_symbol] = ($rangedescriptor, ())
       $identifier = Verilog.WireObject{$rangedescriptor}(string($ident_symbol))
     else
       #in the general case
@@ -187,8 +195,12 @@ export @input
 
 type AssignError <: Exception; s::String; end
 
+
+
 macro assign(ident, expr)
-  #later, parse more complicated assignment statements.
+
+  ##############################################################################
+  ## AN ASSIGNMENT THAT IS AN ASSIGNMENT TO A SINGLE IDENTIFIER
   if isa(ident, Symbol)
     ident_symbol = QuoteNode(ident)
 
@@ -200,7 +212,7 @@ macro assign(ident, expr)
         if $ident_symbol in keys(__verilog_state.wires)
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, " = ", assign_temp.lexical_representation, ";"))
         else
-          __verilog_state.wires[$ident_symbol] = range(assign_temp)
+          __verilog_state.wires[$ident_symbol] = (range(assign_temp), ())
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, " = ", assign_temp.lexical_representation, ";"))
           $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
         end
@@ -210,11 +222,11 @@ macro assign(ident, expr)
         #if we're passing it a wire object, then it must be either a direct
         #wire declaration or some sort of wire constant.
         if Verilog.assigned(assign_temp)
-          __verilog_state.wires[$ident_symbol] = range(assign_temp)
+          __verilog_state.wires[$ident_symbol] = (range(assign_temp), ())
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, " = ", Verilog.wo_concat(assign_temp), ";"))
           $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
         else
-          __verilog_state.wires[$ident_symbol] = range(assign_temp)
+          __verilog_state.wires[$ident_symbol] = (range(assign_temp), ())
           $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
         end
       elseif isa(assign_temp, Verilog.ModuleObject)
@@ -228,63 +240,85 @@ macro assign(ident, expr)
         push!(__verilog_state.dependencies, assign_temp.moduleparams)
         #create the wire associated with this module call.
         assign_range = assign_temp.outputlist[1].second
-        __verilog_state.wires[$ident_symbol] = assign_range
+        __verilog_state.wires[$ident_symbol] = (assign_range, ())
         #this could be the last assignment.
         __verilog_state.last_assignments = [$ident_symbol => assign_range]
         #and also instantiate a new variable with this parameter.
         $ident = Verilog.WireObject{assign_range}(string($ident_symbol))
+      elseif isa(assign_temp, Array) && (typeof(assign_temp).parameters[1] <: Wire)
+
       else
         #just pass the value to ident, without touching it.
         $ident = assign_temp
       end
     end)
+
+  ##############################################################################
+  ## ASSIGNING TO AN ARRAY REFERENT.  THIS COULD EITHER BE A WIRE SUBRANGE OR IT
+  ## COULD BE AN ARRAY OF WIRES.
+
   elseif ident.head == :ref
+    ident_base = ident.args[1]
     ident_symbol = QuoteNode(ident.args[1])
     ident_reference = ident.args[2]
     esc(quote
-      assign_temp = $expr
-      if isa($ident_reference, Verilog.RelativeRange)
-        parsed_reference = Verilog.parse_msb($ident_reference, __verilog_state.wires[$ident_symbol])
-      elseif isa($ident_reference, Verilog.msb)
-        parsed_reference = __verilog_state.wires[$ident_symbol].stop - ($ident_reference).value
-      elseif isa($ident_reference, Type{Verilog.msb})
-        parsed_reference = __verilog_state.wires[$ident_symbol].stop
+      ##########################################################################
+      # array-of-wires case.
+      if isa($ident_base, Array) && (typeof($ident_base).parameters[1] <: Wire)
+        @assert isa(ident_reference, Integer)
+        #push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt(parsed_reference), "= ", assign_temp.lexical_representation, ";"))
       else
-        parsed_reference = $ident_reference
-      end
+      ##########################################################################
+      # wire subrange case
+        assign_temp = $expr
+        if isa($ident_reference, Verilog.RelativeRange)
+          parsed_reference = Verilog.parse_msb($ident_reference, (__verilog_state.wires[$ident_symbol])[1])
+        elseif isa($ident_reference, Verilog.msb)
+          parsed_reference = (__verilog_state.wires[$ident_symbol])[1].stop - ($ident_reference).value
+        elseif isa($ident_reference, Type{Verilog.msb})
+          parsed_reference = (__verilog_state.wires[$ident_symbol])[1].stop
+        else
+          parsed_reference = $ident_reference
+        end
 
-      if isa(assign_temp, Verilog.WireObject)
-        if $ident_symbol in keys(__verilog_state.wires)
-          push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt(parsed_reference), "= ", assign_temp.lexical_representation, ";"))
-        else
-          throw(AssignError("can't make a partial assignment to a nonexistent wire."))
-        end
-      elseif isa(assign_temp, Verilog.ModuleObject)
-        if $ident_symbol in keys(__verilog_state.wires)
-          mname = assign_temp.modulename
-          mcaller = string(assign_temp.modulename, "_", $ident_symbol, "_", (parsed_reference).stop, "_", (parsed_reference).start)
-          mout = assign_temp.outputlist[1].first
-          iplist = assign_temp.inputlist
-          idsym = string($ident_symbol, Verilog.v_fmt(parsed_reference))
-          push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    .$mout ($idsym));\n"))
+        if isa(assign_temp, Verilog.WireObject)
+          if $ident_symbol in keys(__verilog_state.wires)
+            push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt(parsed_reference), "= ", assign_temp.lexical_representation, ";"))
+          else
+            throw(AssignError("can't make a partial assignment to a nonexistent wire."))
+          end
+        elseif isa(assign_temp, Verilog.ModuleObject)
+          if $ident_symbol in keys(__verilog_state.wires)
+            mname = assign_temp.modulename
+            mcaller = string(assign_temp.modulename, "_", $ident_symbol, "_", (parsed_reference).stop, "_", (parsed_reference).start)
+            mout = assign_temp.outputlist[1].first
+            iplist = assign_temp.inputlist
+            idsym = string($ident_symbol, Verilog.v_fmt(parsed_reference))
+            push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    .$mout ($idsym));\n"))
 
-          #this could be the last assignment.
-          __verilog_state.last_assignment = [$ident_symbol => range(assign_temp)]
+            #this could be the last assignment.
+            __verilog_state.last_assignment = [$ident_symbol => range(assign_temp)]
+          else
+            throw(AssignError("can't make a partial assignment to a nonexistent wire."))
+          end
+        elseif isa(assign_temp, Verilog.Wire)
+          #assume that naked wire objects that are tried to be assigned must be
+          #constant values.
+          if Verilog.assigned(assign_temp)
+            push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt($ident_reference), "= ", Verilog.wo_concat(assign_temp), ";"))
+          else
+            throw(UnassignedError())
+          end
         else
-          throw(AssignError("can't make a partial assignment to a nonexistent wire."))
+          $ident = $expr
         end
-      elseif isa(assign_temp, Verilog.Wire)
-        #assume that naked wire objects that are tried to be assigned must be
-        #constant values.
-        if Verilog.assigned(assign_temp)
-          push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt($ident_reference), "= ", Verilog.wo_concat(assign_temp), ";"))
-        else
-          throw(UnassignedError())
-        end
-      else
-        $ident = $expr
       end
     end)
+
+  ##############################################################################
+  ## ASSIGNING FROM A MODULE CALL TO A TUPLE.  WIRE ARRAY ASSIGNMENTS NOT
+  ## SUPPORTED (FOR NOW)
+
   elseif ident.head == :tuple
     ident_list = ident.args
     assign_temp = expr
@@ -304,7 +338,7 @@ macro assign(ident, expr)
           push!(idlist, string($ident_symbol))
           push!(oplist, string(".", output_list[$idx].first, " (", $ident_symbol, ")"))
           #create the wire associated with this module call.
-          __verilog_state.wires[$ident_symbol] = output_list[$idx].second
+          __verilog_state.wires[$ident_symbol] = (output_list[$idx].second, ())
           #instantiate a new variable with this parameter.
           $ident = Verilog.WireObject{output_list[$idx].second}(string($ident_symbol))
         end
@@ -374,13 +408,13 @@ end
 macro final(identifiers...)
   if length(identifiers) == 1
     ident_symbol = QuoteNode(identifiers[1])
-    esc(:(__verilog_state.last_assignments = [$ident_symbol => __verilog_state.wires[$ident_symbol]]))
+    esc(:(__verilog_state.last_assignments = [$ident_symbol => (__verilog_state.wires[$ident_symbol])[1]]))
   else
     #println(:($identifiers))
     esc(quote
       pairlist = []
       for sym in $identifiers
-        push!(pairlist, sym => __verilog_state.wires[sym])
+        push!(pairlist, sym => (__verilog_state.wires[sym])[1])
       end
       __verilog_state.last_assignments = pairlist
     end)

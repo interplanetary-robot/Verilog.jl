@@ -38,7 +38,7 @@ module calls_vf(
   wire [1:0] c2;
 
   vf vf_c1_c2(
-    .x (z)
+    .x (z),
     .o1 (c1),
     .o2 (c2));
 
@@ -61,7 +61,7 @@ module calls_vf_2(
   wire [3:0] c2;
 
   vf vf_c1_c2_1_0(
-    .x (z)
+    .x (z),
     .o1 (c1),
     .o2 (c2[1:0]));
 
