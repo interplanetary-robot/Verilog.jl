@@ -129,7 +129,8 @@ Ignoring the wire declarations, transpiles to:
 
 ## A few notes.
 
-### On the Wire type.  
+### On the Wire type.
+
 This is a datatype that represents an indexed array of 3-value logic (1,0,X).  
 To make your stuff look more verilog-ey, the "v" suffix
 for unit ranges is provided.
@@ -138,6 +139,25 @@ Eg:
 * `Wire{6:0v}` is roughly equivalent to `wire [6:0]`
 * `Wire{12:1v}` is roughly equivalent to `wire [12:1]`
 * SingleWire is aliased to `Wire{0:0v}`, roughly equivalent to `wire`
+
+### On wire arrays
+
+Do the natural thing and use the non-initializing `Array{Wire{<descriptor>}}(n)`
+constructor from Julia.  Note that when transpiling to verilog, the wire arrays
+will be down-shifted by one to make them one-indexed (this feature may change
+in the future!).  Currently, binary muxes are not supported.
+
+Gotchas:
+* Assigning to wire array member partials is not allowed:
+  ```
+    my_array = Array{Wire{1:0v},1}(6)
+    my_array[1]       = Wire(0b11,2)                    # <== this is OK.
+    my_array[2][1:0v] = Wire(0b11,2)                    # <== don't do this.
+  ```
+* Assigning wire array member partials with a function is not allowed:
+  ```
+    my_array[3][1:0v] = some_verilog_module(some_input) # <== don't do this.
+  ```
 
 ### What's that `@suffix` macro?  
 If you have parameter(s) that you'd like to use to trigger creation of multiple
@@ -168,7 +188,6 @@ Coming Soon:
 * better documentation!
 * more unit tests!
 * support for sequential logic as well as combinatorial logic
-* support for input and output labeling
-* support for muxes, wire arrays, and simple conditionals
+* translation of muxes and simple conditionals
 * tools for automatic verification
 * automatically convert println() to nonsynthesizable "display"

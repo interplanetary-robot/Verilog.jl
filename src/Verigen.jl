@@ -246,7 +246,24 @@ macro assign(ident, expr)
         #and also instantiate a new variable with this parameter.
         $ident = Verilog.WireObject{assign_range}(string($ident_symbol))
       elseif isa(assign_temp, Array) && (typeof(assign_temp).parameters[1] <: Wire)
+        wtype = typeof(assign_temp).parameters[1]
+        wdim = typeof(assign_temp).parameters[2]
+        wrange = wtype.parameters[1]
+        #make sure this array object has a defined type (and not just a blank wire)
+        @assert isa(wrange, Verilog.VerilogRange)
+        wa_size = size(assign_temp)
 
+        __verilog_state.wires[$ident_symbol] = (wrange, wa_size)
+        #go ahead and overwrite all of these with empty wires of the correct type.
+        #reassign assign_temp as an array of wireobjects with the same dimensions
+        #as the array of wires.
+        assign_temp = Array{Verilog.WireObject{wrange}, wdim}(wa_size...)
+        for idx = 1:length(assign_temp)
+          #fill the wireobject with the appropriate dereferencing indexes.
+          name = string($ident_symbol, join(map((n) -> "[$(n-1)]", ind2sub(wa_size, idx))))
+          assign_temp[idx] = Verilog.WireObject{wrange}(name)
+        end
+        $ident = assign_temp
       else
         #just pass the value to ident, without touching it.
         $ident = assign_temp
@@ -264,9 +281,29 @@ macro assign(ident, expr)
     esc(quote
       ##########################################################################
       # array-of-wires case.
-      if isa($ident_base, Array) && (typeof($ident_base).parameters[1] <: Wire)
-        @assert isa(ident_reference, Integer)
-        #push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt(parsed_reference), "= ", assign_temp.lexical_representation, ";"))
+      if isa($ident_base, Array) && (typeof($ident_base).parameters[1] <: Verilog.WireObject)
+        @assert isa($ident_reference, Integer)
+        if isa($expr, Wire)
+          push!(__verilog_state.assignments, string("  assign ", ($ident).lexical_representation, " = ", Verilog.wo_concat($expr), ";"))
+        elseif isa($expr, Verilog.WireObject)
+          push!(__verilog_state.assignments, string("  assign ", ($ident).lexical_representation, " = ", ($expr).lexical_representation, ";"))
+        elseif isa($expr, Verilog.ModuleObject)
+          mname = $expr.modulename
+          #create the output "look"
+          idsym = string($ident_symbol, "[", ($ident_reference - 1), "]")
+          #create verilog's caller assignment name, which can't have brackets,
+          #use an underscore to make it a subscript.
+          mcaller = string($expr.modulename, "_", $ident_symbol, "_", ($ident_reference - 1))
+          iplist = $expr.inputlist
+          mout = $expr.outputlist[1].first
+          push!(__verilog_state.modulecalls, string("  $mname $mcaller(\n    ", join(iplist, ",\n    "), ",\n    .$mout ($idsym));\n"))
+          #add this to the list of dependencies.
+          push!(__verilog_state.dependencies, $expr.moduleparams)
+          #asserting that the sizes match.
+          if length(($expr).outputlist[1].second) != length($ident)
+            throw(Verilog.SizeMismatchError())
+          end
+        end
       else
       ##########################################################################
       # wire subrange case
@@ -345,19 +382,36 @@ macro assign(ident, expr)
 
       elseif isa(ident, Expr) && (ident.head == :ref)
 
+        #the case where it's a reference, it could either be a wire subreference
+        #or it could be a wire array.
+
+        ident_ref = ident.args[1]
         ident_symbol = QuoteNode(ident.args[1])
         ident_range = ident.args[2]
 
         assignment_code = quote
           $assignment_code
-          wirerange = output_list[$idx].second
-          dest_range = $ident_range
-          if isa(dest_range, Integer)
-            push!(idlist, string($ident_symbol, "_", dest_range))
-          else
-            push!(idlist, string($ident_symbol, "_", dest_range.start == dest_range.stop ? dest_range.start : "$(wirerange.stop)_$(wirerange.start)"))
+
+          #check if it's a wire object.
+          if isa($ident_ref, Array) && (typeof($ident_ref).parameters[1] <: Verilog.WireObject)
+            #assert that the index is not something strange.
+            @assert isa($ident_range, Integer)
+            #push this into the identifier list
+            push!(idlist, string($ident_symbol, "_", $ident_range - 1))
+            #push this onto the output list.
+            push!(oplist, string(".", output_list[$idx].first, " (", $ident_symbol,"[", $ident_range - 1,"])"))
+          elseif isa($ident_ref, Verilog.WireObject)
+            wirerange = output_list[$idx].second
+            dest_range = $ident_range
+            if isa(dest_range, Integer)
+              @assert (length(wirerange) == 1)
+              push!(idlist, string($ident_symbol, "_", dest_range))
+            else
+              @assert (length(wirerange) == length(dest_range))
+              push!(idlist, string($ident_symbol, "_", dest_range.start == dest_range.stop ? dest_range.start : "$(wirerange.stop)_$(wirerange.start)"))
+            end
+            push!(oplist, string(".", output_list[$idx].first, " (", $ident_symbol, strip(Verilog.v_fmt(dest_range)),")"))
           end
-          push!(oplist, string(".", output_list[$idx].first, " (", $ident_symbol, strip(Verilog.v_fmt(wirerange)),")"))
         end
 
       else #do nothing.

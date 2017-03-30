@@ -106,8 +106,6 @@ macro verilog(f)
     f_module = module_translate(f)
     f_wiretext = wiretext_translate(f)
 
-    println(f_wiretext)
-
     #strip module instructions
     strip_nonmodule!(f)
 
