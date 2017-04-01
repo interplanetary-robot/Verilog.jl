@@ -47,6 +47,7 @@ end
 const lintoff_stmts = """
 /* verilator lint_off DECLFILENAME */
 /* verilator lint_off UNUSED */
+/* verilator lint_off PINMISSING */
 
 """
 
@@ -94,7 +95,6 @@ end
 
 export generate_verilog_file
 
-
 doc"""
   `verilate(mod::Function, p::Tuple; path::String)`
   uses verilator to create a .so file corresponding to the library.
@@ -102,13 +102,19 @@ doc"""
   in a freestanding .v file.  They may refer to each other.
   the "mods" are a tuple of the function and the parameter.
 """
-function verilate(mod::Function, p::Tuple; path::String = ".")
+function verilate(mod::Function, p::Tuple; path::String = ".", libname::String="")
   #check to see if the path_to_c_library is actually a dir.
   isdir(path) || mkdir(path)
 
   nkey = normalized_key(mod, p)
   #retrieve the proper name of this function
   name = __global_definition_cache[nkey].module_name
+
+  if libname == ""
+    libname = "libVerilated-$(name).so"
+  end
+
+  println("verilating to generate $path/$libname")
 
   #create the temp directory
   mktempdir((tdir)->begin
@@ -133,42 +139,118 @@ function verilate(mod::Function, p::Tuple; path::String = ".")
       object_files = ["$tdir/obj_dir/$f" for f in readdir() if f[end-1:end] == ".o"]
 
       #manually link the object files into a shared library.
-      run(`cc -Wall -shared $object_files -o libVerilated.so`)
+      run(`cc -Wall -shared $object_files -o $libname`)
     end, "$tdir/obj_dir")
 
     #finally, save the temporary verilated file into the main path, squashing it if necessary.
-    mv("$tdir/obj_dir/libVerilated.so", "$path/libVerilated.so"; remove_destination=true)
+    mv("$tdir/obj_dir/$libname", "$path/$libname"; remove_destination=true)
   end)
 end
 
-macro vfunc(path...)
+doc"""
+  `@verilate function parameters [path]`
+
+  verilates a @verilog function with the passed parameter and places the shared
+  object library into [path].  By default, the path used is going to be
+  "./libVerilated-[function].so".
+
+  the function is then hooked up to a function with signature []
+"""
+macro verilate(f, p, path...)
+  #f should be a symbol
+  @assert isa(f, Symbol) "@verilate must be run on a function symbol"
+  #check to make sure that f is in the function database.
+
+  @assert isa(eval(Main, f), Function) "@verilate must be run on a function symbol"
+
   if length(path) == 1
     path = path[1]
+    @assert isa(path, String) "@verilate paths must be strings"
   else
-    path = "./libVerilated.so"
+    path = "./libVerilated-$f.so"
   end
 
+  (dir, fname) = splitdir(path)
+  realdir = realpath(dir)
+
+  #trigger compilation of the function verilog by executing the parameter tuple
+  #on a blank version of the function.
+  v_fn = eval(Main, f)
+  v_p  = eval(Main, p)
+  v_fn(v_p...)
+
+  #assign the module cache
+  mod_cache = Verilog.__global_definition_cache[normalized_key(f, v_p)]
+  name = mod_cache.module_name
+
+  #generate the input tuple and input signature
+  input_signature = :(())
+  input_converts = :()
+  input_ccall = :(ccall((:set, $path), Void, $input_signature))
+  for idx = 1:length(mod_cache.inputs)
+    iname = Symbol(:input, idx)
+    input_converts = :($input_converts; $iname = UInt64($iname))
+    push!(input_signature.args, :UInt64)
+    push!(input_ccall.args, iname)
+  end
+
+  #create "c" versions of the function
+  cfunctionname = Symbol(name, "_c")
+
+  #build the output type object to be consistent with the c definition.
+  #also build the return tuple command.
+  otypename = Symbol("__", name, "_output_type")
+  output_type_generator = :(type $otypename; end)
+  return_tuple = :(())
+  create_tuple = :(())
+  for idx = 1:length(mod_cache.outputlist)
+    oname = Symbol(:output, idx)
+    push!(output_type_generator.args[3].args, :($oname::UInt64))
+    push!(return_tuple.args, :(output_ref.$oname))
+    push!(create_tuple.args, 0x0000_0000_0000_0000)
+  end
+
+  #generate the code for the evaluation function
+  if length(mod_cache.outputlist) == 1
+    efunc = :(function ($cfunctionname)()
+      #create an output_ref
+      $input_ccall
+      ccall((:step, $path), Void, ())
+      res = ccall((:get, $path), UInt64, ())
+      res
+    end)
+  else
+    efunc = :(function ($cfunctionname)()
+      #create an output_ref
+      output_ref = $otypename(($create_tuple)...)
+      $input_ccall
+      ccall((:step, $path), Void, ())
+      ccall((:get, $path), Void, (Ptr{$otypename},), pointer_from_objref(output_ref))
+      $return_tuple
+    end)
+  end
+
+  #append input definitions onto the efunc.
+  for idx = 1:length(mod_cache.inputs)
+    input_name = Symbol(:input, idx)
+    input_stmt = :($input_name::Unsigned)
+    push!(efunc.args[1].args, input_stmt)
+  end
+
+  #this needs to be eval'd because julia is finicky.
+  eval(Main, output_type_generator)
+
+  #this also needs to be eval'd because of the way that julia
+  #parses and executes ccalls.
+  eval(Main, :(verilate($f, $p, path = $realdir, libname = $fname)))
+
   esc(quote
-    #go ahead and initalize it.
+    #initialize the verilated version of the function.
     ccall((:init, $path), Void, ())
 
-    function veval(a::Unsigned)
-      ccall((:set, $path), Void, (UInt64,), a)
-      ccall((:step, $path), Void, ())
-      ccall((:get, $path), UInt64, ())
-    end
-    function veval(a::Unsigned,b::Unsigned,c::Unsigned)
-      ccall((:set, $path), Void, (UInt64, UInt64, UInt64), a, b, c)
-      ccall((:step, $path), Void, ())
-      ccall((:get, $path), UInt64, ())
-    end
-    function veval(a::Unsigned,b::Unsigned)
-      ccall((:set, $path), Void, (UInt64, UInt64), a, b)
-      ccall((:step, $path), Void, ())
-      ccall((:get, $path), UInt64, ())
-    end
+    $efunc
   end)
 end
 
 export verilate
-export @vfunc
+export @verilate

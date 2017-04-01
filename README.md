@@ -187,7 +187,8 @@ wires in the implementation of the module.
 Coming Soon:
 * better documentation!
 * more unit tests!
-* support for sequential logic as well as combinatorial logic
+* support for sequential logic
+* arithmetic operations on wires longer than 64-bits
 * translation of muxes and simple conditionals
 * tools for automatic verification
 * automatically convert println() to nonsynthesizable "display"

@@ -5,6 +5,7 @@ doc"""
 """
 function verilator_adapter(ident)
   modname = __global_definition_cache[ident].module_name
+
   """
 #include <verilated.h>
 #include <iostream>
@@ -45,14 +46,29 @@ $setters
 end
 
 function verilator_getter(ident)
-  if length(__global_definition_cache[ident].outputlist) != 1
-    throw(ArgumentError("malformed @verilog function $ident"))
-  end
-  output = __global_definition_cache[ident].outputlist[1].first
   modname = __global_definition_cache[ident].module_name
-"""
+  if length(__global_definition_cache[ident].outputlist) == 1
+    #extract the output symbol for this module.
+    oup = first(__global_definition_cache[ident].outputlist).first
+    """
 extern "C" unsigned long long get(){
-  return $(modname)->$(output);
+  return $(modname)->$(oup);
 }
-"""
+    """
+  else
+    #in the case where the result is more complex, we'll have to output a
+    #struct for each of output values, which will be encoded as a 64-bit integer.
+    outputs = __global_definition_cache[ident].outputlist
+    olist = join(["  unsigned long long $(oup.first);" for oup in outputs], "\n")
+    getters = join(["  value->$(oup.first) = $(modname)->$(oup.first);" for oup in outputs], "\n")
+    """
+typedef struct{
+$(olist)
+} output_struct;
+
+extern "C" void get(output_struct *value){
+  $getters
+}
+    """
+  end
 end

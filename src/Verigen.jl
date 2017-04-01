@@ -301,6 +301,8 @@ macro assign(ident, expr)
           push!(__verilog_state.dependencies, $expr.moduleparams)
           #asserting that the sizes match.
           if length(($expr).outputlist[1].second) != length($ident)
+            print("length of ", $expr.outputlist[1], " mismatches ")
+            print("length of ", $ident, ".")
             throw(Verilog.SizeMismatchError())
           end
         end
