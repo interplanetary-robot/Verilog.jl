@@ -159,6 +159,16 @@ Gotchas:
     my_array[3][1:0v] = some_verilog_module(some_input) # <== don't do this.
   ```
 
+### Verilation
+
+(linux-only) if you have a working version of "verilator", you can use the
+verilate macro.
+```
+  @verilate my_favorite_function (parameter tuple)
+```
+This will create a function ```my_favorite_function_c```  which takes unsigned
+integers and returns tuples of 64-bit unsigned integers.
+
 ### What's that `@suffix` macro?  
 If you have parameter(s) that you'd like to use to trigger creation of multiple
 instances of the module, use that.  If you have parameters that you're tuning,

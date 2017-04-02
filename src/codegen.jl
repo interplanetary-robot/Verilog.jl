@@ -96,13 +96,20 @@ end
 export generate_verilog_file
 
 doc"""
-  `verilate(mod::Function, p::Tuple; path::String)`
+  `verilate(mod::Function, p::Tuple)`
   uses verilator to create a .so file corresponding to the library.
   Each of the functions in the mods array will be the top-level element
   in a freestanding .v file.  They may refer to each other.
   the "mods" are a tuple of the function and the parameter.
+
+  Passed options:
+    path::String      - defaults to "." - the library .so file will be placed in the path.
+    libname::String   - file name for the library.  Defaults to libVerilated-[function_with_suffix].so
+    with_source::Bool - defaults to "false" - should the c source be included?
+                        this is useful if you're building a library around the
+                        verilated module.
 """
-function verilate(mod::Function, p::Tuple; path::String = ".", libname::String="")
+function verilate(mod::Function, p::Tuple; path::String = ".", libname::String="", with_source = false)
   #check to see if the path_to_c_library is actually a dir.
   isdir(path) || mkdir(path)
 
@@ -142,8 +149,14 @@ function verilate(mod::Function, p::Tuple; path::String = ".", libname::String="
       run(`cc -Wall -shared $object_files -o $libname`)
     end, "$tdir/obj_dir")
 
-    #finally, save the temporary verilated file into the main path, squashing it if necessary.
-    mv("$tdir/obj_dir/$libname", "$path/$libname"; remove_destination=true)
+    #in the case that the caller requests the source code
+    if (with_source)
+      #copy all the source files to the destination directory
+      cp("$tdir/", "$path/"; remove_destination=true)
+    else
+      #finally, save the temporary verilated file into the main path, squashing it if necessary.
+      mv("$tdir/obj_dir/$libname", "$path/$libname"; remove_destination=true)
+    end
   end)
 end
 
@@ -156,7 +169,7 @@ doc"""
 
   the function is then hooked up to a function with signature []
 """
-macro verilate(f, p, path...)
+macro verilate(f, p = (), path...)
   #f should be a symbol
   @assert isa(f, Symbol) "@verilate must be run on a function symbol"
   #check to make sure that f is in the function database.
