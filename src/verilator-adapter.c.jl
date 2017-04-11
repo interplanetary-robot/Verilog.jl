@@ -36,7 +36,7 @@ end
 function verilator_setter(ident)
   inputs = __global_definition_cache[ident].inputs
   modname = __global_definition_cache[ident].module_name
-  ilist   = join(["unsigned long long $inp" for inp in inputs], ",")
+  ilist   = join(["uint64_t $inp" for inp in inputs], ",")
   setters = join(["  $(modname)->$(inp) = $inp;" for inp in inputs], "\n")
   """
 extern "C" void set($ilist){
@@ -51,7 +51,7 @@ function verilator_getter(ident)
     #extract the output symbol for this module.
     oup = first(__global_definition_cache[ident].outputlist).first
     """
-extern "C" unsigned long long get(){
+extern "C" uint64_t get(){
   return $(modname)->$(oup);
 }
     """
@@ -59,7 +59,7 @@ extern "C" unsigned long long get(){
     #in the case where the result is more complex, we'll have to output a
     #struct for each of output values, which will be encoded as a 64-bit integer.
     outputs = __global_definition_cache[ident].outputlist
-    olist = join(["  unsigned long long $(oup.first);" for oup in outputs], "\n")
+    olist = join(["  uint64_t $(oup.first);" for oup in outputs], "\n")
     getters = join(["  value->$(oup.first) = $(modname)->$(oup.first);" for oup in outputs], "\n")
     """
 typedef struct{

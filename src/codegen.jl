@@ -1,7 +1,7 @@
 ##codegen.jl
 # functions relating to verilog code generation and verilation.
 
-function normalized_key(mod::Union{Function, Symbol}, p::Tuple)
+function normalized_key(mod::Union{Function, Symbol}, p::Tuple; build_if_necessary::Bool = false)
   m_rep = Symbol(mod)
 
   for k in keys(__global_dependency_cache)
@@ -10,7 +10,18 @@ function normalized_key(mod::Union{Function, Symbol}, p::Tuple)
     end
   end
 
-  throw(ArgumentError("Key not found!"))
+  if (build_if_necessary)
+    if isa(mod, Symbol)
+      m = eval(mod)
+      m(p...)
+    else
+      mod(p...)
+    end
+
+    return normalized_key(mod, p)
+  else
+    throw(ArgumentError("Key not found!"))
+  end
 end
 
 doc"""
@@ -113,8 +124,9 @@ function verilate(mod::Function, p::Tuple; path::String = ".", libname::String="
   #check to see if the path_to_c_library is actually a dir.
   isdir(path) || mkdir(path)
 
-  nkey = normalized_key(mod, p)
+  nkey = normalized_key(mod, p, build_if_necessary = true)
   #retrieve the proper name of this function
+
   name = __global_definition_cache[nkey].module_name
 
   if libname == ""
