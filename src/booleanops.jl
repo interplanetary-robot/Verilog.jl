@@ -1,48 +1,39 @@
 
-function Base.:~(w::Wire)
+function Base.:~{R}(w::Wire{R})
   #if any of them are undefined we have a problem.
-  assigned(w) || throw(UnassignedError())
-  Wire(~w.values)
+  unks = unknown_check(w)
+  Wire{R}(~w.values, unks)
 end
 
-macro sidescheck()
-  esc(quote
-    assigned(lhs) || throw(UnassignedError())
-    assigned(rhs) || throw(UnassignedError())
-    length(lhs) == length(rhs) || throw(SizeMismatchError())
-  end)
+function Base.:&{R}(lhs::Wire{R}, rhs::Wire{R})
+  unks = unknown_check(lhs, rhs)
+  Wire{R}(lhs.values & rhs.values, unks)
 end
 
-
-function Base.:&(lhs::Wire, rhs::Wire)
-  @sidescheck
-  Wire(lhs.values & rhs.values)
+function Base.:|{R}(lhs::Wire{R}, rhs::Wire{R})
+  unks = unknown_check(lhs, rhs)
+  Wire{R}(lhs.values | rhs.values, unks)
 end
 
-function Base.:|{N}(lhs::Wire{N}, rhs::Wire{N})
-  @sidescheck
-  Wire(lhs.values | rhs.values)
-end
-
-function Base.:^{N}(lhs::Wire{N}, rhs::Wire{N})
-  @sidescheck
-  Wire(lhs.values $ rhs.values)
+function Base.:^{R}(lhs::Wire{R}, rhs::Wire{R})
+  unks = unknown_check(lhs, rhs)
+  Wire{R}(lhs.values $ rhs.values, unks)
 end
 
 #unary operators
-function Base.:&{N}(tgt::Wire{N})
-  assigned(tgt) || throw(UnassignedError())
-  Wire((&)(tgt.values...))
+function Base.:&{R}(tgt::Wire{R})
+  unks = unknown_check(tgt)
+  Wire{R}((&)(tgt.values...), &(unks))
 end
 
-function Base.:|{N}(tgt::Wire{N})
-  assigned(tgt) || throw(UnassignedError())
-  Wire((|)(tgt.values...))
+function Base.:|{R}(tgt::Wire{R})
+  unks = unknown_check(tgt)
+  Wire{R}((|)(tgt.values...), &(unks))
 end
 
-function Base.:^{N}(tgt::Wire{N})
-  assigned(tgt) || throw(UnassignedError())
-  Wire(($)(tgt.values...))
+function Base.:^{R}(tgt::Wire{R})
+  unks = unknown_check(tgt)
+  Wire{R}(($)(tgt.values...), &(unks))
 end
 
 #negated operators

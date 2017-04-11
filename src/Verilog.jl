@@ -4,8 +4,13 @@ module Verilog
   #support for python-style range() indexing
   include("verilog_ranges.jl")
 
+  #various error definitions that may come up
+  include("errors.jl")
+
   include("Wire.jl")
   include("wire-display.jl")
+
+  include("unknown_safety.jl")
 
   include("booleanops.jl")
   include("arithmeticops.jl")
@@ -23,5 +28,8 @@ module Verilog
     include("codegen.jl")
     include("verilator-adapter.c.jl")
   end
+
+  #sequential verilog
+  include("sequential.jl")
 
 end # module

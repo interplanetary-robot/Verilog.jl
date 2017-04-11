@@ -1,8 +1,3 @@
-type UnassignedError   <: Exception; end
-type AssignedError     <: Exception; end
-type SizeMismatchError <: Exception; end
-
-
 #wire.jl - defines the Wire type.  Wires are stored under the hood as bitvectors.
 doc"""
   `Wire{R}`
@@ -14,12 +9,11 @@ doc"""
   Wire{6:2v} declares a five-bit verilog wire with indices spanning from
   2->6.
 """
-
 immutable Wire{R}
   values::BitVector
   assigned::BitVector
 
-  function Wire(bv1, bv2)
+  function Wire(bv1::BitVector, bv2::BitVector)
     isa(R, VerilogRange) || throw(TypeError(:Wire, "specifier must be a VerilogRange", VerilogRange, typeof(R)))
     (R.start <= R.stop) || throw(TypeError(:Wire, "constructor range direction failed", R, "backwards"))
     (length(bv1) == length(bv2) == length(R)) || throw(SizeMismatchError())
@@ -28,14 +22,22 @@ immutable Wire{R}
 end
 
 ################################################################################
+# conveniently allow one to initialize a wire with a single step.
+#(::Type{Wire})(bv::Bool, av::Bool)     = Wire{0:0v}(bv ? trues(1) : falses(1), av ? trues(1) : falses(1))
+
+################################################################################
 ## Aliased naked constructors.
-(::Type{Wire})(bv::Bool)               = Wire{0:0v}(BitArray([bv]),trues(1))
+(::Type{Wire})(bv::Bool)               = Wire{0:0v}(bv ? trues(1) : falses(1),trues(1))
 (::Type{Wire})(N::Signed)              = Wire{(N-1):0v}(BitVector(N), falses(N))
 (::Type{Wire})(R::VerilogRange)        = Wire{R}(BitVector(length(R)), falses(length(R)))
 (::Type{Wire})(bv::BitVector)          = Wire{(length(bv)-1):0v}(bv, trues(length(bv)))
 #allow initialization of wire with an array, but remember to reverse it.
-(::Type{Wire})(wa::Vector{Wire})       = Wire(vcat(map((w) -> w.values, reverse(wa))...))
-(::Type{Wire}){N}(wa::Vector{Wire{N}}) = Wire(vcat(map((w) -> w.values, reverse(wa))...))
+function (::Type{Wire})(wa::Vector{Wire})
+  Wire(vcat(map((w) -> w.values, reverse(wa))...), vcat(map((w) -> w.assigned, reverse(wa))...))
+end
+function (::Type{Wire}){R}(wa::Vector{Wire{R}})
+  Wire(vcat(map((w) -> w.values, reverse(wa))...), vcat(map((w) -> w.assigned, reverse(wa))...))
+end
 (::Type{Wire})(ws::Wire...)            = Wire(collect(Wire, ws))
 
 #declaration with an unsigned integer
@@ -97,7 +99,7 @@ import Base: length, range
 
 length{R}(w::Wire{R}) = length(R)
 range{R}(w::Wire{R}) = R
-assigned(w::Wire) = (&)(w.assigned...)
+isassigned(w::Wire) = (&)(w.assigned...)
 
 ################################################################################
 # getters and setters

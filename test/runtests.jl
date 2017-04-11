@@ -6,6 +6,7 @@ macro test_string(string, expr)
   :(@test string($expr) == $string)
 end
 
+#=
 #test the wire functions
 include("test-wires.jl")
 
@@ -20,3 +21,6 @@ include("test-multioutput.jl")
 
 #test wire arrays
 include("test-wirearray.jl")
+=#
+
+include("test-sequential.jl")
