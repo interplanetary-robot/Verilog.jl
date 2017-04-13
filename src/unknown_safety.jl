@@ -2,10 +2,13 @@
 #unknowns and not checking for unknowns.
 
 #creates the assignment safety variable inside a closure for performance reasons.
+#this should be run only once, by the library.
 function __unknown_safety_function_factory()
   unknown_safe::Bool = true
   (function unknown_check(wires::Wire...)::BitVector
-    unknown_safe && isassigned(wires[1]) || throw(UnassignedError())
+    if unknown_safe
+      isassigned(wires[1]) || throw(UnassignedError())
+    end
     for w in wires[2:end]
       #check that all the parameters have the same size
       length(w) == length(wires[1]) || throw(SizeMismatchError())
@@ -54,3 +57,14 @@ doc"""
   gets the unknown safety parameter.  See:  Verilog.unknown_check()
 """
 get_unknown_safety
+
+#two helper macros that make this process much easier.
+macro safeties_off()
+  esc(quote
+    __safety = Verilog.get_unknown_safety()
+    Verilog.set_unknown_safety(false)
+  end)
+end
+macro restore_safety()
+  esc(:(Verilog.set_unknown_safety(__safety)))
+end

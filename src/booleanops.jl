@@ -7,12 +7,14 @@ end
 
 function Base.:&{R}(lhs::Wire{R}, rhs::Wire{R})
   unks = unknown_check(lhs, rhs)
-  Wire{R}(lhs.values & rhs.values, unks)
+  mask = (~lhs.values & lhs.assigned) | (~rhs.values & rhs.assigned)
+  Wire{R}(lhs.values & rhs.values, unks | mask)
 end
 
 function Base.:|{R}(lhs::Wire{R}, rhs::Wire{R})
   unks = unknown_check(lhs, rhs)
-  Wire{R}(lhs.values | rhs.values, unks)
+  mask = (lhs.values & lhs.assigned) | (rhs.values & rhs.assigned)
+  Wire{R}(lhs.values | rhs.values, unks | mask)
 end
 
 function Base.:^{R}(lhs::Wire{R}, rhs::Wire{R})
@@ -22,13 +24,15 @@ end
 
 #unary operators
 function Base.:&{R}(tgt::Wire{R})
+  res = (&)(tgt.values...)
   unks = unknown_check(tgt)
-  Wire{R}((&)(tgt.values...), &(unks))
+  Wire{R}((&)(tgt.values...), &(unks) | !res)
 end
 
 function Base.:|{R}(tgt::Wire{R})
+  res = (|)(tgt.values...)
   unks = unknown_check(tgt)
-  Wire{R}((|)(tgt.values...), &(unks))
+  Wire{R}(res, &(unks) | res)
 end
 
 function Base.:^{R}(tgt::Wire{R})
