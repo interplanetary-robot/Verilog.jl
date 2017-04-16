@@ -3,7 +3,6 @@
 
 macro always(p...)
   mainblock = last(p)
-  dump(mainblock)
   #clean it so that it's not in a begin...end block, instead an array of terms.
   if mainblock.head == :block
     return_ident = :()
@@ -106,13 +105,21 @@ macro sequential(f)
   has_always = false
   fn_block = f.args[2].args
   for idx in 1:length(fn_block)
-    if (fn_block[idx].head == Symbol("="))
-      println("check block:")
-      dump(fn_block[idx])
-      println("------------")
-    end
-
     if (fn_block[idx].head == :macrocall) && (fn_block[idx].args[1] == Symbol("@always"))
+      #only one always allowed.
+      has_always && throw(ArgumentError("only one @always allowed per module"))
+
+      for jdx in 2:(length(fn_block[idx].args) - 1)
+        if isof(fn_block[idx].args[jdx], :(posedge(WIRE)), :WIRE)
+          wiresymbol = fn_block[idx].args[jdx].args[2]
+          #println("posedge ", wiresymbol)
+        end
+      end
+
+      #println("---------")
+      #dump(fn_block[idx])
+      #println("---------")
+
       #expand the always macro, then replace the old statement in the AST.
       fn_block[idx] = macroexpand(fn_block[idx])
       has_always = true
@@ -141,16 +148,12 @@ macro sequential(f)
     push!(f.args[2].args, :(Verilog.@restore_safety))
     push!(f.args[2].args, :(__return_value))
 
-    println("##############")
-
     t = quote
       function $enclosure_name()
         $register_assignments
         $f
       end
     end
-
-    println(t)
     esc(t)
   else
     f

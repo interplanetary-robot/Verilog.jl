@@ -27,10 +27,13 @@ end
 
 ################################################################################
 ## Aliased naked constructors.
-(::Type{Wire})(bv::Bool)               = Wire{0:0v}(bv ? trues(1) : falses(1),trues(1))
-(::Type{Wire})(N::Signed)              = Wire{(N-1):0v}(BitVector(N), falses(N))
-(::Type{Wire})(R::VerilogRange)        = Wire{R}(BitVector(length(R)), falses(length(R)))
-(::Type{Wire})(bv::BitVector)          = Wire{(length(bv)-1):0v}(bv, trues(length(bv)))
+bitarray(bv::Bool) = bv ? trues(1) : falses(1)
+(::Type{Wire})(bv::Bool)                     = Wire{0:0v}(bitarray(bv), trues(1))
+(::Type{Wire})(bv::Bool, vv::Bool)           = Wire{0:0v}(bitarray(bv), bitarray(vv))
+(::Type{Wire})(N::Signed)                    = Wire{(N-1):0v}(BitVector(N), falses(N))
+(::Type{Wire})(R::VerilogRange)              = Wire{R}(BitVector(length(R)), falses(length(R)))
+(::Type{Wire})(bv::BitVector)                = Wire{(length(bv)-1):0v}(bv, trues(length(bv)))
+(::Type{Wire})(bv::BitVector, vv::BitVector) = Wire{(length(bv)-1):0v}(bv, vv)
 #allow initialization of wire with an array, but remember to reverse it.
 function (::Type{Wire})(wa::Vector{Wire})
   Wire(vcat(map((w) -> w.values, reverse(wa))...), vcat(map((w) -> w.assigned, reverse(wa))...))

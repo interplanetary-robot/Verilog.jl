@@ -66,7 +66,7 @@ function Base.:<{R,S}(lhs::Wire{R}, rhs::Wire{S})
     warn("currently > 64 bit wires not supported.")
     throw(SizeMismatchError())
   end
-  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
+  isassigned(lhs) && isassigned(rhs) || throw(UnassignedError())
 
   mask = trimInt64(length(R))
 
@@ -81,7 +81,7 @@ function Base.:(==){R,S}(lhs::Wire{R}, rhs::Wire{S})
     warn("currently > 64 bit wires not supported.")
     throw(SizeMismatchError())
   end
-  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
+  isassigned(lhs) && isassigned(rhs) || throw(UnassignedError())
 
   mask = trimInt64(length(R))
 
@@ -100,7 +100,7 @@ function Base.:(<<){R,S}(lhs::Wire{R}, rhs::Wire{S})
     warn("> 64 bit wires for shifter RHS not supported.")
     throw(SizeMismatchError())
   end
-  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
+  isassigned(lhs) && isassigned(rhs) || throw(UnassignedError())
   result = Wire(lhs.values.chunks[1] << rhs.values.chunks[1], length(R))
 end
 
@@ -113,7 +113,7 @@ function Base.:(>>){R,S}(lhs::Wire{R}, rhs::Wire{S})
     warn("> 64 bit wires for shifter RHS not supported.")
     throw(SizeMismatchError())
   end
-  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
+  isassigned(lhs) && isassigned(rhs) || throw(UnassignedError())
   result = Wire(lhs.values.chunks[1] >> rhs.values.chunks[1], length(R))
 end
 
@@ -126,7 +126,7 @@ function Base.:(>>>){R,S}(lhs::Wire{R}, rhs::Wire{S})
     warn("> 64 bit wires for shifter RHS not supported.")
     throw(SizeMismatchError())
   end
-  assigned(lhs) && assigned(rhs) || throw(UnassignedError())
+  isassigned(lhs) && isassigned(rhs) || throw(UnassignedError())
 
   #if the top value is true, then we'll have to spoof negativity.
   #the trimInt64() function can help, by masking those invisible values

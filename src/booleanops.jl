@@ -22,22 +22,47 @@ function Base.:^{R}(lhs::Wire{R}, rhs::Wire{R})
   Wire{R}(lhs.values $ rhs.values, unks)
 end
 
-#unary operators
+#slow mullin_add test:
+#472.227883 seconds (1.30 G allocations: 59.241 GB, 2.72% gc time)
+
+#unary operators.
+
+# A | B
+# T | T => T
+# T | F => F
+# T | X => X
+# F | F => F
+# F | X => F
+# X | X => X
+
 function Base.:&{R}(tgt::Wire{R})
-  res = (&)(tgt.values...)
-  unks = unknown_check(tgt)
-  Wire{R}((&)(tgt.values...), &(unks) | !res)
+  res = true
+  ass = true
+  for idx = 1:length(R)
+    res = tgt.values[idx] & res
+    ass = (!tgt.values[idx] & tgt.assigned[idx]) | (tgt.assigned[idx] & ass)
+  end
+  Wire(res, ass)
 end
 
 function Base.:|{R}(tgt::Wire{R})
-  res = (|)(tgt.values...)
-  unks = unknown_check(tgt)
-  Wire{R}(res, &(unks) | res)
+  res = false
+  ass = true
+  for idx = 1:length(R)
+    res = tgt.values[idx] | res
+    ass = (tgt.values[idx] & tgt.assigned[idx]) | (tgt.assigned[idx] & ass)
+  end
+  Wire(res, ass)
 end
 
 function Base.:^{R}(tgt::Wire{R})
-  unks = unknown_check(tgt)
-  Wire{R}(($)(tgt.values...), &(unks))
+  res = false
+  ass = true
+  for idx = 1:length(R)
+    res = tgt.values[idx] $ res
+    ass = tgt.assigned[idx] & ass
+  end
+  Wire(res, ass)
 end
 
 #negated operators
@@ -55,7 +80,7 @@ Base.:~(::typeof(|)) = nor
 Base.:~(::typeof(^)) = xnor
 
 function xorxnor(w::Wire)
-  assigned(w) || throw(UnassignedError())
+  isassigned(w) || throw(UnassignedError())
   Wire([(^)(w), (~^)(w)])
 end
 

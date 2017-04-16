@@ -221,7 +221,7 @@ macro assign(ident, expr)
       elseif isa(assign_temp, Wire)
         #if we're passing it a wire object, then it must be either a direct
         #wire declaration or some sort of wire constant.
-        if Verilog.assigned(assign_temp)
+        if Verilog.isassigned(assign_temp)
           __verilog_state.wires[$ident_symbol] = (range(assign_temp), ())
           push!(__verilog_state.assignments, string("  assign ", $ident_symbol, " = ", Verilog.wo_concat(assign_temp), ";"))
           $ident = Verilog.WireObject{range(assign_temp)}(string($ident_symbol))
@@ -343,7 +343,7 @@ macro assign(ident, expr)
         elseif isa(assign_temp, Verilog.Wire)
           #assume that naked wire objects that are tried to be assigned must be
           #constant values.
-          if Verilog.assigned(assign_temp)
+          if Verilog.isassigned(assign_temp)
             push!(__verilog_state.assignments, string("  assign ", $ident_symbol, Verilog.v_fmt($ident_reference), "= ", Verilog.wo_concat(assign_temp), ";"))
           else
             throw(UnassignedError())

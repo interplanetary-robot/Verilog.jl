@@ -21,7 +21,7 @@ function __unknown_safety_function_factory()
     if unknown_safe
       trues(length(wires[1]))
     else
-      Base.:&.([w.assigned for w in wires]...)
+      (&)([w.assigned for w in wires]...)
     end
    end,
    function set_unknown_safety(value::Bool)
