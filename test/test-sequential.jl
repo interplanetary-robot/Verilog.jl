@@ -8,9 +8,6 @@
   q_nxt = ((8 * ld) & din) | ((8 * (~ld)) & reg)
 
   @always posedge(clock) begin
-    println(8 * ~reset)
-    println(q_nxt)
-
     reg = (8 * ~reset) & q_nxt
   end
 end

@@ -147,7 +147,7 @@ macro sequential(f)
     enclosure_name = Symbol("__enc_", fsymbol)
     #push disabling safety checks brackets onto the function.
 
-    register_assignments = :(nothing)
+    register_assignments = nothing
     #parse through, looking for register assignments.
     g = []
     for exp in f.args[2].args
@@ -176,6 +176,10 @@ macro sequential(f)
     push!(f.args[2].args, :(Verilog.@restore_safety))
     push!(f.args[2].args, :(__return_value))
 
+    #brand f with a type coercion to a wire.
+    f.args[1] = Expr(:(::), f.args[1])
+    push!(f.args[1].args, :Wire)
+
     t = quote
       function $enclosure_name()
         $persist_decls
@@ -183,7 +187,6 @@ macro sequential(f)
         $f
       end
     end
-    println(t)
     esc(t)
   else
     f
@@ -197,5 +200,7 @@ end
 (::Type{Register{R}}){R}() = Register(Wire{R}())
 Base.:&{R}(w::Wire{R}, r::Register{R}) = w & r.log3v
 Base.:|{R}(w::Wire{R}, r::Register{R}) = w | r.log3v
+
+Base.convert{R}(::Type{Wire}, r::Register{R}) = r.log3v
 
 export @sequential, @always, Register
