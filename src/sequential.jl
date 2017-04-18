@@ -13,7 +13,6 @@ macro always(p...)
         mainblock.args[idx] = :(Verilog.@alwaysassign $(return_ident) $(return_value))
       end
     end
-
     push!(mainblock.args, :(__return_value = $return_ident))
   end
   esc(mainblock)
@@ -104,6 +103,13 @@ macro sequential(f)
   #check to see if there's an @always directive.
   has_always = false
   fn_block = f.args[2].args
+
+  #allocate expressions in case it is an @always block.
+  persist_decls = nothing
+  persist_checks = nothing
+  persist_assgns = nothing
+  last_assignment = nothing
+
   for idx in 1:length(fn_block)
     if (fn_block[idx].head == :macrocall) && (fn_block[idx].args[1] == Symbol("@always"))
       #only one always allowed.
@@ -112,16 +118,26 @@ macro sequential(f)
       for jdx in 2:(length(fn_block[idx].args) - 1)
         if isof(fn_block[idx].args[jdx], :(posedge(WIRE)), :WIRE)
           wiresymbol = fn_block[idx].args[jdx].args[2]
-          #println("posedge ", wiresymbol)
+          #generate two things 1) the persistent value symbol, 2) the value check,
+          # and 3) the assignment of the persistent value.
+          persist_value_ident = Symbol(:__persist_, wiresymbol)
+          persist_decls = :($persist_decls; $persist_value_ident = SingleWire())
+          if (persist_checks == nothing)
+            persist_checks = :((!$persist_value_ident.values[1]) & $wiresymbol.values[1])
+          else
+            persist_checks = :($persist_checks & (!$persist_value_ident.values[1]) & $wiresymbol.values[1])
+          end
+          persist_assgns = :($persist_assgns; $persist_value_ident = $wiresymbol)
         end
       end
 
-      #println("---------")
-      #dump(fn_block[idx])
-      #println("---------")
-
       #expand the always macro, then replace the old statement in the AST.
       fn_block[idx] = macroexpand(fn_block[idx])
+
+      last_assignment = last(fn_block[idx].args)
+      #pop it.
+      pop!(fn_block[idx].args)
+
       has_always = true
     end
   end
@@ -131,7 +147,7 @@ macro sequential(f)
     enclosure_name = Symbol("__enc_", fsymbol)
     #push disabling safety checks brackets onto the function.
 
-    register_assignments = :()
+    register_assignments = :(nothing)
     #parse through, looking for register assignments.
     g = []
     for exp in f.args[2].args
@@ -141,19 +157,33 @@ macro sequential(f)
         push!(g, exp)
       end
     end
-    f.args[2].args = g
+
+    conditional_block = quote
+      if $persist_checks
+      end
+    end
+
+    #append the contents of the function
+    append!(conditional_block.args[2].args[2].args, g)
+
+    f.args[2] = conditional_block
 
     #add safety check toggling.
     unshift!(f.args[2].args, :(Verilog.@safeties_off))
+    #make assignments on the persistent values.
+    push!(f.args[2].args, last_assignment)
+    push!(f.args[2].args, persist_assgns)
     push!(f.args[2].args, :(Verilog.@restore_safety))
     push!(f.args[2].args, :(__return_value))
 
     t = quote
       function $enclosure_name()
+        $persist_decls
         $register_assignments
         $f
       end
     end
+    println(t)
     esc(t)
   else
     f

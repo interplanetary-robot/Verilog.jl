@@ -20,8 +20,10 @@ function __unknown_safety_function_factory()
 
     if unknown_safe
       trues(length(wires[1]))
+    elseif length(wires) == 1
+      return wires[1].assigned
     else
-      (&)([w.assigned for w in wires]...)
+      return (&)([w.assigned for w in wires]...)
     end
    end,
    function set_unknown_safety(value::Bool)
